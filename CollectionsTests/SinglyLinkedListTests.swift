@@ -20,7 +20,7 @@ class CollectionsTests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
         super.tearDown()
     }
-    
+
     func testEmptyList() {
         let list = SinglyLinkedList<Int>()
 
@@ -30,55 +30,132 @@ class CollectionsTests: XCTestCase {
         XCTAssertNil(list.first, "The first element is not nil")
     }
 
-    func testAppendNode() {
-        let nodes = [
-            SinglyLinkedListNode(1),
-            SinglyLinkedListNode(2),
-            SinglyLinkedListNode(3),
-            SinglyLinkedListNode(4),
-            SinglyLinkedListNode(5),
-        ]
+    func testSubscript() {
+        var list = SinglyLinkedList([-3, -2, -1])
 
-        var list = SinglyLinkedList<Int>()
-        for n in nodes {
-            list.append(node: n)
-        }
+        var index = list.startIndex
+        list[index] = 1
+        list.formIndex(after: &index)
+        list[index] = 2
+        list.formIndex(after: &index)
+        list[index] = 3
+
+        var values: [Int] = []
+        index = list.startIndex
+        values.append(list[index])
+        list.formIndex(after: &index)
+        values.append(list[index])
+        list.formIndex(after: &index)
+        values.append(list[index])
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not written correctly")
+    }
+
+    func testSwapAt() {
+        var list = SinglyLinkedList([3, 2, 1])
+        list.swapAt(list.startIndex, list.index(list.startIndex, offsetBy: 2))
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not swapped")
+    }
+
+    func testNodes() {
+        let list = SinglyLinkedList([1, 2, 3])
+        let nodes = Array(list.nodes)
+        let values = [
+            nodes[0].value,
+            nodes[1].value,
+            nodes[2].value
+        ]
 
         XCTAssertTrue(nodes[0].next === nodes[1], "The `next` property of first node does not point to second one")
         XCTAssertTrue(nodes[1].next === nodes[2], "The `next` property of second node does not point to third one")
-        XCTAssertTrue(nodes[2].next === nodes[3], "The `next` property of third node does not point to fourth one")
-        XCTAssertTrue(nodes[3].next === nodes[4], "The `next` property of fourth node does not point to fifth one")
-        XCTAssertNil(nodes[4].next, "The `next` property of fifth node is not nil")
-
-        XCTAssertTrue(!list.isEmpty, "The list is empty")
-        XCTAssertEqual(list.count, 5, "The list count is not equal to five")
-        XCTAssertEqual(list.distance(from: list.startIndex, to: list.endIndex), 5, "Total distance is not equal to five")
-        XCTAssertEqual(list.first, 1, "The first element is not `1`")
+        XCTAssertNil (nodes[2].next, "The `next` property of third node is not nil")
+        XCTAssertEqual(values, [1, 2, 3], "The values of nodes are not expected ones")
     }
 
-    func testInsertNode() {
-        let nodes = [
-            SinglyLinkedListNode(1),
-            SinglyLinkedListNode(2),
-            SinglyLinkedListNode(3),
-            SinglyLinkedListNode(4),
-            SinglyLinkedListNode(5),
+    func testAppendElement() {
+        var list = SinglyLinkedList<Int>()
+        list.append(1)
+        list.append(2)
+        list.append(3)
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not appended correctly")
+    }
+
+    func testInsertElement() {
+        var list = SinglyLinkedList<Int>()
+        list.insert(3, at: list.endIndex)
+        list.insert(1, at: list.startIndex)
+        list.insert(2, at: list.index(list.startIndex, offsetBy: 1))
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not inserted correctly")
+    }
+
+    func testAppendSequence() {
+        var list = SinglyLinkedList<Int>()
+        list.append(contentsOf: [1, 2])
+        list.append(contentsOf: [    ])
+        list.append(contentsOf: [3   ])
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The sequences are not appended correctly")
+    }
+
+    func testInsertSequence() {
+        var list = SinglyLinkedList<Int>()
+        list.insert(contentsOf: [3], at: list.endIndex)
+        list.insert(contentsOf: [ ], at: list.startIndex)
+        list.insert(contentsOf: [1], at: list.startIndex)
+        list.insert(contentsOf: [2], at: list.index(list.startIndex, offsetBy: 1))
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The collections are not inserted correctly")
+    }
+
+    func testRemoveFirst() {
+        var list = SinglyLinkedList([-3, -2, -1, 1, 2, 3])
+        let removed = [
+            list.removeFirst(),
+            list.removeFirst(),
+            list.removeFirst()
         ]
 
-        var list = SinglyLinkedList<Int>()
-        for n in nodes {
-            list.insert(node: n, at: list.startIndex)
-        }
+        XCTAssertEqual(removed, [-3, -2, -1], "The removed elements are not expected ones")
+        XCTAssertEqual(Array(list), [1, 2, 3], "The remaining elements are not expected ones")
+    }
 
-        XCTAssertNil(nodes[0].next, "The `next` property of first node is not nil")
-        XCTAssertTrue(nodes[1].next === nodes[0], "The `next` property of second node does not point to first one")
-        XCTAssertTrue(nodes[2].next === nodes[1], "The `next` property of third node does not point to second one")
-        XCTAssertTrue(nodes[3].next === nodes[2], "The `next` property of fourth node does not point to third one")
-        XCTAssertTrue(nodes[4].next === nodes[3], "The `next` property of fifth node does not point to fourth one")
+    func testRemoveAt() {
+        var list = SinglyLinkedList([-3, 1, 2, -2, 3, -1])
+        let removed = [
+            list.remove(at: list.startIndex),
+            list.remove(at: list.index(list.startIndex, offsetBy: 2)),
+            list.remove(at: list.index(list.startIndex, offsetBy: 3)),
+        ]
 
-        XCTAssertTrue(!list.isEmpty, "The list is empty")
-        XCTAssertEqual(list.count, 5, "The list count is not equal to five")
-        XCTAssertEqual(list.distance(from: list.startIndex, to: list.endIndex), 5, "Total distance is not equal to five")
-        XCTAssertEqual(list.first, 5, "The first element is not `5`")
+        XCTAssertEqual(removed, [-3, -2, -1], "The removed elements are not expected ones")
+        XCTAssertEqual(Array(list), [1, 2, 3], "The remaining elements are not expected ones")
+    }
+
+    func testRemoveSubrange() {
+        var list = SinglyLinkedList([-4, 1, 2, -3, -2, 3, -1])
+        list.removeSubrange(list.startIndex..<list.index(after: list.startIndex))
+        list.removeSubrange(list.index(list.startIndex, offsetBy: 2)..<list.index(list.startIndex, offsetBy: 4))
+        list.removeSubrange(list.index(list.startIndex, offsetBy: 3)..<list.endIndex)
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not removed correctly")
+    }
+
+    func testRemoveAll() {
+        var list = SinglyLinkedList([-1, -2, -3])
+        list.removeAll()
+
+        XCTAssertEqual(Array(list), [], "The list is not empty")
+    }
+
+    func testReplaceSubrange() {
+        var list = SinglyLinkedList([-4, 2, -3, -2, 3, -1])
+        list.replaceSubrange(list.startIndex..<list.index(list.startIndex, offsetBy: 3), with:[1])
+        list.replaceSubrange(list.index(list.startIndex, offsetBy: 1)..<list.index(list.startIndex, offsetBy: 4), with:[])
+        list.replaceSubrange(list.endIndex..<list.endIndex, with: [2, 3])
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not replaced correctly")
     }
 }
