@@ -113,6 +113,11 @@ public struct SinglyLinkedList<Element> {
         tail = chain.tail
     }
 
+    public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
+        self.init()
+        append(contentsOf: elements)
+    }
+
     private func failEarlyInsertionIndexCheck(_ index: Index) {
         precondition(index.identity === identity, "Invalid Index")
         // FIXME: Add Fatal Errors.
@@ -120,7 +125,7 @@ public struct SinglyLinkedList<Element> {
 
     private func failEarlyRetrievalIndexCheck(_ index: Index) {
         precondition(index.identity === identity, "Invalid Index")
-        precondition(index.previous === tail, "Index out of bounds")
+        precondition(index.previous !== tail, "Index out of bounds")
         // FIXME: Add Fatal Errors.
     }
 
@@ -215,7 +220,7 @@ extension SinglyLinkedList : Sequence {
     }
 }
 
-extension SinglyLinkedList : Collection {
+extension SinglyLinkedList : LinkedCollection {
     public typealias Index = SinglyLinkedListIndex<Element>
     public typealias Node = SinglyLinkedListNode<Element>
     public typealias SubSequence = SinglyLinkedList<Element>
@@ -238,6 +243,10 @@ extension SinglyLinkedList : Collection {
     public func formIndex(after i: inout Index) {
         i.offset += 1
         i.previous = i.previous.next!
+
+        if i.previous === tail {
+            i.offset = Int.max
+        }
     }
 
     public func distance(from start: Index, to end: Index) -> Int {
@@ -361,7 +370,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         abandon(after: bounds.lowerBound.previous, including: bounds.upperBound.previous)
     }
 
-    public mutating func removeAll(keepingCapacity keepCapacity: Bool) {
+    public mutating func removeAll(keepingCapacity keepCapacity: Bool = false) {
         abandon(after: head, including: tail)
     }
 
