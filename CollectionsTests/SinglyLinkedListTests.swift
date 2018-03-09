@@ -30,7 +30,7 @@ class CollectionsTests: XCTestCase {
         XCTAssertNil(list.first, "The first element is not nil")
     }
 
-    func testSubscript() {
+    func testElementSubscript() {
         var list = SinglyLinkedList([-3, -2, -1])
 
         var index = list.startIndex
@@ -49,6 +49,22 @@ class CollectionsTests: XCTestCase {
         values.append(list[index])
 
         XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not written correctly")
+    }
+
+    func testSliceSubscript() {
+        var list = SinglyLinkedList([-3, -2, -1, 0, 0, 0, 1, 2, 3])
+
+        let slice1 = list[list.startIndex..<list.index(list.startIndex, offsetBy: 3)]
+        let slice2 = list[slice1.endIndex..<list.index(slice1.endIndex, offsetBy: 3)]
+        let slice3 = list[slice2.endIndex..<list.endIndex]
+
+        list[slice2.startIndex..<slice2.endIndex] = SinglyLinkedList<Int>([])
+        list[list.index(after: list.startIndex)..<list.endIndex] = SinglyLinkedList<Int>([0, 3])
+
+        XCTAssertEqual(Array(slice1), [-3, -2, -1], "The elements of first slice are not correct")
+        XCTAssertEqual(Array(slice2), [0, 0, 0], "The elements of second slice are not correct")
+        XCTAssertEqual(Array(slice3), [1, 2, 3], "The elements of third slice are not correct")
+        XCTAssertEqual(Array(list), [-3, 0, 3], "The elements of slice are not written correctly")
     }
 
     func testSwapAt() {
