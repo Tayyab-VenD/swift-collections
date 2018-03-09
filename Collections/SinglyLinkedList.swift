@@ -32,6 +32,32 @@ fileprivate func makeChain<S>(_ elements: S) -> Chain<S.Element>? where S : Sequ
     return nil
 }
 
+fileprivate func cloneChain<Element>(first: SinglyLinkedListNode<Element>?, last: SinglyLinkedListNode<Element>?) -> Chain<Element>? {
+    // Proceed if chain is not empty
+    if first !== last {
+        // Clone first node.
+        var chain: Chain<Element>
+        chain.head = SinglyLinkedListNode(first!.element)
+        chain.tail = chain.head
+
+        var node = first!.next
+        let limit = last!.next
+
+        // Clone remaining nodes.
+        while node !== limit {
+            let clone = SinglyLinkedListNode(node!.element)
+            chain.tail.next = clone
+            chain.tail = clone
+
+            node = node!.next
+        }
+
+        return chain
+    }
+
+    return nil
+}
+
 fileprivate class Identity {
 }
 
@@ -140,32 +166,18 @@ public struct SinglyLinkedList<Element> {
             return
         }
 
-        var chain: Chain<Element>
-        chain.head = Node()
-        chain.tail = chain.head
-
-        var node = head.next
-        let limit = tail.next
-
-        // Make a new chain of all existing nodes.
-        while node !== limit {
-            let current = Node(node?.element)
-            chain.tail.next = current
-            chain.tail = current
-
-            if node === first {
-                first = current
-            }
-            if node === last {
-                last = current
-            }
-
-            node = node?.next
-        }
+        let leadingChain = cloneChain(first: head, last: first)!
+        let trailingChain = cloneChain(first: last, last: tail)
 
         // Replace the bounding nodes.
-        head = chain.head
-        tail = chain.tail
+        head = leadingChain.head
+        tail = leadingChain.tail
+
+        // Attach trailing chain if available.
+        if let trailingChain = trailingChain {
+            tail.next = trailingChain.head
+            tail = trailingChain.tail
+        }
 
         // Reset the state of list.
         uniqueness = Identity()
