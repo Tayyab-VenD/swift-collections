@@ -206,7 +206,12 @@ public struct SinglyLinkedList<Element> {
         unsafe = list.unsafe
     }
 
-    private mutating func makeUnique() {
+    public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
+        self.init()
+        append(contentsOf: elements)
+    }
+
+    private mutating func ensureUniqueBox() {
         if isKnownUniquelyReferenced(&unsafe) {
             return
         }
@@ -214,22 +219,17 @@ public struct SinglyLinkedList<Element> {
         unsafe = unsafe.makeClone()
     }
 
-    private mutating func makeUniqueWithMark(node: inout Node) {
+    private mutating func ensureUniqueWithMark(_ node: inout Node) {
         var last = node
-        makeUniqueSkippingInners(first: &node, last: &last)
+        ensureUniqueSkippingInners(&node, &last)
     }
 
-    private mutating func makeUniqueSkippingInners(first: inout Node, last: inout Node) {
+    private mutating func ensureUniqueSkippingInners(_ first: inout Node, _ last: inout Node) {
         if isKnownUniquelyReferenced(&unsafe) {
             return
         }
 
         unsafe = unsafe.makeCloneSkippingInners(first: &first, last: &last)
-    }
-
-    public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
-        self.init()
-        append(contentsOf: elements)
     }
 
     private func failEarlyInsertionIndexCheck(_ index: Index) {
@@ -341,7 +341,7 @@ extension SinglyLinkedList : LinkedCollection {
 
             var first = bounds.lowerBound.previous
             var last = bounds.upperBound.previous
-            makeUniqueSkippingInners(first: &first, last: &last)
+            ensureUniqueSkippingInners(&first, &last)
 
             if !slice.isEmpty {
                 // Slice has at least one element.
@@ -370,13 +370,13 @@ extension SinglyLinkedList : LinkedCollection {
 extension SinglyLinkedList : RangeReplaceableCollection {
 
     public mutating func append(_ newElement: Element) {
-        makeUnique()
+        ensureUniqueBox()
         unsafe.attach(node: Node(newElement))
     }
 
     public mutating func append<S>(contentsOf newElements: S) where S : Sequence, Element == S.Element {
         if let chain = makeChain(newElements) {
-            makeUnique()
+            ensureUniqueBox()
             unsafe.attach(chain: chain)
         }
     }
@@ -384,26 +384,25 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     public mutating func insert(_ newElement: Element, at i: Index) {
         failEarlyInsertionIndexCheck(i)
 
-        var node = i.previous
-        makeUniqueWithMark(node: &node)
+        var last = i.previous
+        ensureUniqueWithMark(&last)
 
-        unsafe.attach(node: Node(newElement), after: node)
+        unsafe.attach(node: Node(newElement), after: last)
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
         failEarlyInsertionIndexCheck(i)
 
         if let chain = makeChain(newElements) {
-            var node = i.previous
-            makeUniqueWithMark(node: &node)
+            var last = i.previous
+            ensureUniqueWithMark(&last)
 
-            unsafe.attach(chain: chain, after: node)
+            unsafe.attach(chain: chain, after: last)
         }
     }
 
     public mutating func removeFirst() -> Element {
-        // FIXME: Identity Checking...
-        makeUnique()
+        ensureUniqueBox()
         return unsafe.abandon(after: unsafe.head)
     }
 
@@ -411,7 +410,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         failEarlyRetrievalIndexCheck(i)
 
         var node = i.previous
-        makeUniqueWithMark(node: &node)
+        ensureUniqueWithMark(&node)
 
         return unsafe.abandon(after: node)
     }
@@ -421,7 +420,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
 
         var first = bounds.lowerBound.previous
         var last = bounds.upperBound.previous
-        makeUniqueSkippingInners(first: &first, last: &last)
+        ensureUniqueSkippingInners(&first, &last)
 
         unsafe.abandon(after: first, including: last)
     }
@@ -429,7 +428,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     public mutating func removeAll(keepingCapacity keepCapacity: Bool = false) {
         var first = unsafe.head
         var last = unsafe.tail
-        makeUniqueSkippingInners(first: &first, last: &last)
+        ensureUniqueSkippingInners(&first, &last)
 
         unsafe.abandon(after: first, including: last)
     }
@@ -439,7 +438,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
 
         var first = subrange.lowerBound.previous
         var last = subrange.upperBound.previous
-        makeUniqueSkippingInners(first: &first, last: &last)
+        ensureUniqueSkippingInners(&first, &last)
 
         if let chain = makeChain(newElements) {
             unsafe.attach(chain: chain, after: first, skipping: last)
