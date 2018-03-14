@@ -8,8 +8,8 @@
 
 import Foundation
 
-typealias Node<Element> = SinglyLinkedListNode<Element>
-typealias Chain<Element> = (head: SinglyLinkedListNode<Element>, tail: SinglyLinkedListNode<Element>)
+fileprivate typealias Node<Element> = SinglyLinkedListNode<Element>
+fileprivate typealias Chain<Element> = (head: Node<Element>, tail: Node<Element>)
 
 fileprivate func makeChain<S>(_ elements: S) -> Chain<S.Element>? where S : Sequence {
     // Proceed if collection contains at least one element.
@@ -17,12 +17,12 @@ fileprivate func makeChain<S>(_ elements: S) -> Chain<S.Element>? where S : Sequ
     if let element = iterator.next() {
         // Create node for first element.
         var chain: Chain<S.Element>
-        chain.head = SinglyLinkedListNode(element)
+        chain.head = Node(element)
         chain.tail = chain.head
 
         // Create nodes for remaining elements.
         while let element = iterator.next() {
-            let current = SinglyLinkedListNode(element)
+            let current = Node(element)
             chain.tail.next = current
             chain.tail = current
         }
@@ -33,10 +33,10 @@ fileprivate func makeChain<S>(_ elements: S) -> Chain<S.Element>? where S : Sequ
     return nil
 }
 
-fileprivate func cloneChain<Element>(first: SinglyLinkedListNode<Element>, last: SinglyLinkedListNode<Element>) -> Chain<Element> {
+fileprivate func cloneChain<Element>(first: Node<Element>, last: Node<Element>) -> Chain<Element> {
     // Clone first node.
     var chain: Chain<Element>
-    chain.head = SinglyLinkedListNode(first.element)
+    chain.head = Node(first.element)
     chain.tail = chain.head
 
     var node = first.next
@@ -44,7 +44,7 @@ fileprivate func cloneChain<Element>(first: SinglyLinkedListNode<Element>, last:
 
     // Clone remaining nodes.
     while node !== limit {
-        let clone = SinglyLinkedListNode(node!.element)
+        let clone = Node(node!.element)
         chain.tail.next = clone
         chain.tail = clone
 
@@ -52,9 +52,6 @@ fileprivate func cloneChain<Element>(first: SinglyLinkedListNode<Element>, last:
     }
 
     return chain
-}
-
-fileprivate class Identity {
 }
 
 public class SinglyLinkedListNode<Element> {
@@ -75,10 +72,10 @@ public class SinglyLinkedListNode<Element> {
 
 public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
     private let uniqueness: AnyObject
-    private var current: SinglyLinkedListNode<Element>?
-    private let last: SinglyLinkedListNode<Element>?
+    private var current: Node<Element>?
+    private let last: Node<Element>?
 
-    fileprivate init(uniqueness: AnyObject, first: SinglyLinkedListNode<Element>?, last: SinglyLinkedListNode<Element>?) {
+    fileprivate init(uniqueness: AnyObject, first: Node<Element>?, last: Node<Element>?) {
         self.uniqueness = uniqueness
         self.current = first
         self.last = last
@@ -98,7 +95,7 @@ public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
 }
 
 public struct SinglyLinkedListIndex<Element> : Comparable {
-    fileprivate unowned var identity: Identity
+    fileprivate unowned var identity: AnyObject
     fileprivate var offset: Int
     fileprivate var previous: SinglyLinkedListNode<Element>
 
@@ -111,9 +108,7 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
     }
 }
 
-class UnsafeSinglyLinkedList<Element> {
-    fileprivate var identity = Identity()  // For ensuring index validity
-
+fileprivate class UnsafeSinglyLinkedList<Element> {
     var head: Node<Element>
     var tail: Node<Element>
 
@@ -233,17 +228,17 @@ public struct SinglyLinkedList<Element> {
     }
 
     private func failEarlyInsertionIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe.identity, "Invalid Index")
+        precondition(index.identity === unsafe, "Invalid Index")
     }
 
     private func failEarlyRetrievalIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe.identity, "Invalid Index")
+        precondition(index.identity === unsafe, "Invalid Index")
         precondition(index.previous !== unsafe.tail, "Index out of bounds")
     }
 
     private func failEarlyRangeCheck(_ range: Range<Index>) {
         precondition(
-            range.lowerBound.identity === unsafe.identity && range.upperBound.identity === unsafe.identity,
+            range.lowerBound.identity === unsafe && range.upperBound.identity === unsafe,
             "Invalid Range Bounds")
     }
 }
@@ -263,7 +258,7 @@ extension SinglyLinkedList : LinkedCollection {
 
     public var startIndex: Index {
         if range == nil {
-            return Index(identity: unsafe.identity, offset: 0, previous: unsafe.head)
+            return Index(identity: unsafe, offset: 0, previous: unsafe.head)
         }
 
         return range!.lowerBound
@@ -271,7 +266,7 @@ extension SinglyLinkedList : LinkedCollection {
 
     public var endIndex: Index {
         if range == nil {
-            return Index(identity: unsafe.identity, offset: Int.max, previous: unsafe.tail)
+            return Index(identity: unsafe, offset: Int.max, previous: unsafe.tail)
         }
 
         return range!.upperBound
