@@ -54,7 +54,7 @@ fileprivate func cloneChain<Element>(first: Node<Element>, last: Node<Element>) 
     return chain
 }
 
-public class SinglyLinkedListNode<Element> {
+public final class SinglyLinkedListNode<Element> {
     fileprivate var element: Element!
     fileprivate(set) public var next: SinglyLinkedListNode<Element>? = nil
 
@@ -108,7 +108,7 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
     }
 }
 
-fileprivate class UnsafeSinglyLinkedList<Element> {
+fileprivate final class UnsafeSinglyLinkedList<Element> {
     var head: Node<Element>
     var tail: Node<Element>
 

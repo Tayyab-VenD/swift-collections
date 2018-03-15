@@ -9,7 +9,7 @@
 import XCTest
 @testable import Collections
 
-class SinglyLinkedListTests: XCTestCase {
+class DoublyLinkedListTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
@@ -22,7 +22,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testEmptyList() {
-        let list = SinglyLinkedList<Int>()
+        let list = LinkedList<Int>()
 
         XCTAssertTrue(list.isEmpty, "The list is not empty")
         XCTAssertEqual(list.count, 0, "The list count is not equal to zero")
@@ -31,7 +31,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testElementSubscript() {
-        var list = SinglyLinkedList([-3, -2, -1])
+        var list = LinkedList([-3, -2, -1])
 
         var index = list.startIndex
         list[index] = 1
@@ -52,14 +52,14 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testSliceSubscript() {
-        var list = SinglyLinkedList([-3, -2, -1, 0, 0, 0, 1, 2, 3])
+        var list = LinkedList([-3, -2, -1, 0, 0, 0, 1, 2, 3])
 
         let slice1 = list[list.startIndex..<list.index(list.startIndex, offsetBy: 3)]
         let slice2 = list[slice1.endIndex..<list.index(slice1.endIndex, offsetBy: 3)]
         let slice3 = list[slice2.endIndex..<list.endIndex]
 
-        list[slice2.startIndex..<slice2.endIndex] = SinglyLinkedList<Int>([])
-        list[list.index(after: list.startIndex)..<list.endIndex] = SinglyLinkedList<Int>([0, 3])
+        list[slice2.startIndex..<slice2.endIndex] = LinkedList<Int>([])
+        list[list.index(after: list.startIndex)..<list.endIndex] = LinkedList<Int>([0, 3])
 
         XCTAssertEqual(Array(slice1), [-3, -2, -1], "The elements of first slice are not correct")
         XCTAssertEqual(Array(slice2), [0, 0, 0], "The elements of second slice are not correct")
@@ -68,14 +68,14 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testSwapAt() {
-        var list = SinglyLinkedList([3, 2, 1])
+        var list = LinkedList([3, 2, 1])
         list.swapAt(list.startIndex, list.index(list.startIndex, offsetBy: 2))
 
         XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not swapped")
     }
 
     func testNodes() {
-        let list = SinglyLinkedList([1, 2, 3])
+        let list = LinkedList([1, 2, 3])
         let nodes = Array(list.nodes)
         let values = [
             nodes[0].value,
@@ -85,12 +85,11 @@ class SinglyLinkedListTests: XCTestCase {
 
         XCTAssertTrue(nodes[0].next === nodes[1], "The `next` property of first node does not point to second one")
         XCTAssertTrue(nodes[1].next === nodes[2], "The `next` property of second node does not point to third one")
-        XCTAssertNil (nodes[2].next, "The `next` property of third node is not nil")
         XCTAssertEqual(values, [1, 2, 3], "The values of nodes are not expected ones")
     }
 
     func testAppendElement() {
-        var list = SinglyLinkedList<Int>()
+        var list = LinkedList<Int>()
         list.append(1)
         list.append(2)
         list.append(3)
@@ -99,7 +98,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testInsertElement() {
-        var list = SinglyLinkedList<Int>()
+        var list = LinkedList<Int>()
         list.insert(3, at: list.endIndex)
         list.insert(1, at: list.startIndex)
         list.insert(2, at: list.index(list.startIndex, offsetBy: 1))
@@ -108,7 +107,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testAppendSequence() {
-        var list = SinglyLinkedList<Int>()
+        var list = LinkedList<Int>()
         list.append(contentsOf: [1, 2])
         list.append(contentsOf: [    ])
         list.append(contentsOf: [3   ])
@@ -117,7 +116,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testInsertSequence() {
-        var list = SinglyLinkedList<Int>()
+        var list = LinkedList<Int>()
         list.insert(contentsOf: [3], at: list.endIndex)
         list.insert(contentsOf: [ ], at: list.startIndex)
         list.insert(contentsOf: [1], at: list.startIndex)
@@ -127,7 +126,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testRemoveFirst() {
-        var list = SinglyLinkedList([-3, -2, -1, 1, 2, 3])
+        var list = LinkedList([-3, -2, -1, 1, 2, 3])
         let removed = [
             list.removeFirst(),
             list.removeFirst(),
@@ -139,7 +138,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testRemoveAt() {
-        var list = SinglyLinkedList([-3, 1, 2, -2, 3, -1])
+        var list = LinkedList([-3, 1, 2, -2, 3, -1])
         let removed = [
             list.remove(at: list.startIndex),
             list.remove(at: list.index(list.startIndex, offsetBy: 2)),
@@ -151,7 +150,7 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testRemoveSubrange() {
-        var list = SinglyLinkedList([-4, 1, 2, -3, -2, 3, -1])
+        var list = LinkedList([-4, 1, 2, -3, -2, 3, -1])
         list.removeSubrange(list.startIndex..<list.index(after: list.startIndex))
         list.removeSubrange(list.index(list.startIndex, offsetBy: 2)..<list.index(list.startIndex, offsetBy: 4))
         list.removeSubrange(list.index(list.startIndex, offsetBy: 3)..<list.endIndex)
@@ -160,14 +159,14 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testRemoveAll() {
-        var list = SinglyLinkedList([-1, -2, -3])
+        var list = LinkedList([-1, -2, -3])
         list.removeAll()
 
         XCTAssertEqual(Array(list), [], "The list is not empty")
     }
 
     func testReplaceSubrange() {
-        var list = SinglyLinkedList([-4, 2, -3, -2, 3, -1])
+        var list = LinkedList([-4, 2, -3, -2, 3, -1])
         list.replaceSubrange(list.startIndex..<list.index(list.startIndex, offsetBy: 3), with:[1])
         list.replaceSubrange(list.index(list.startIndex, offsetBy: 1)..<list.index(list.startIndex, offsetBy: 4), with:[])
         list.replaceSubrange(list.endIndex..<list.endIndex, with: [2, 3])

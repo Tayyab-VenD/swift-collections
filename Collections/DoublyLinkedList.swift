@@ -56,8 +56,8 @@ fileprivate func cloneChain<Element>(first: Node<Element>, last: Node<Element>) 
     return chain
 }
 
-public class LinkedListNode<Element> {
-    fileprivate var element: Element!
+public final class LinkedListNode<Element> {
+    fileprivate(set) var element: Element!
     fileprivate(set) public var next: LinkedListNode<Element>? = nil
     fileprivate(set) public weak var previous: LinkedListNode<Element>? = nil
 
@@ -111,13 +111,18 @@ public struct LinkedListIndex<Element> : Comparable {
     }
 }
 
-fileprivate class UnsafeLinkedList<Element> {
+fileprivate final class UnsafeLinkedList<Element> {
     var head: Node<Element>
 
     init() {
         head = Node()
         head.next = head
         head.previous = head
+    }
+
+    deinit {
+        // Break the retain cycle.
+        head.next = nil
     }
 
     private init(head: Node<Element>, tail: Node<Element>) {
