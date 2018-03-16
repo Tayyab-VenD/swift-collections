@@ -351,8 +351,8 @@ extension LinkedList : LinkedCollection {
             ensureUniqueSkippingInners(&first, &last)
 
             if !slice.isEmpty {
-                // Slice has at least one element.
-                let chain = (head: slice.unsafe.head.next!, tail: slice.unsafe.head.previous!)
+                // Clone the slice nodes.
+                let chain = cloneChain(first: slice.startIndex.node, last: slice.endIndex.node.previous!)
                 unsafe.attach(chain: chain, after: first.previous!, before: last)
             } else {
                 // Slice has no element.
