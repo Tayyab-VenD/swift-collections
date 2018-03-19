@@ -14,7 +14,7 @@ public final class SinglyLinkedListNode<Element> {
     var element: Element!
     internal(set) public var next: SinglyLinkedListNode<Element>? = nil
 
-    internal init() {
+    init() {
     }
 
     init(_ element: Element!) {
@@ -48,25 +48,32 @@ func makeChain<S>(_ elements: S) -> SinglyLinkedListChain<S.Element>? where S : 
     return nil
 }
 
-func cloneChain<Element>(first: SinglyLinkedListNode<Element>, last: SinglyLinkedListNode<Element>) -> SinglyLinkedListChain<Element> {
+func cloneChain<E>(_ chain: SinglyLinkedListChain<E>, mark: inout SinglyLinkedListNode<E>) -> SinglyLinkedListChain<E> {
     // Clone first node.
-    var chain: SinglyLinkedListChain<Element>
-    chain.head = SinglyLinkedListNode(first.element)
-    chain.tail = chain.head
+    let head = SinglyLinkedListNode(chain.head.element)
+    var tail = head
 
-    var node = first.next
-    let limit = last.next
+    if mark === chain.head {
+        mark = head
+    }
+
+    var node = chain.head.next
+    let limit = chain.tail.next
 
     // Clone remaining nodes.
     while node !== limit {
         let clone = SinglyLinkedListNode(node!.element)
-        chain.tail.next = clone
-        chain.tail = clone
+        tail.next = clone
+        tail = clone
+
+        if node === mark {
+            mark = clone
+        }
 
         node = node!.next
     }
 
-    return chain
+    return SinglyLinkedListChain(head: head, tail: tail)
 }
 
 func attach<E>(node: SinglyLinkedListNode<E>, after tail: inout SinglyLinkedListNode<E>) {
