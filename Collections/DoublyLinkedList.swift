@@ -323,7 +323,7 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func append<S>(contentsOf newElements: S) where S : Sequence, Element == S.Element {
-        if let chain = makeChain(newElements) {
+        if let chain: LinkedListChain<Element> = makeChain(newElements) {
             ensureUnique()
             attach(chain: chain, after: unsafe.head.previous!)
         }
@@ -341,7 +341,7 @@ extension LinkedList : RangeReplaceableCollection {
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
         failEarlyInsertionIndexCheck(i)
 
-        if let chain = makeChain(newElements) {
+        if let chain: LinkedListChain<Element> = makeChain(newElements) {
             var node = i.node
             ensureUnique(mark: &node)
 
@@ -390,7 +390,7 @@ extension LinkedList : RangeReplaceableCollection {
         var last = subrange.upperBound.node
         ensureUnique(skippingAfter: &first, skippingBefore: &last)
 
-        if let chain = makeChain(newElements) {
+        if let chain: LinkedListChain<Element> = makeChain(newElements) {
             attach(chain: chain, after: first.previous!, before: last)
         } else {
             abandon(after: first.previous!, before: last)
