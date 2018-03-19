@@ -8,74 +8,12 @@
 
 import Foundation
 
-fileprivate typealias Node<Element> = SinglyLinkedListNode<Element>
-fileprivate typealias Chain<Element> = (head: Node<Element>, tail: Node<Element>)
-
-fileprivate func makeChain<S>(_ elements: S) -> Chain<S.Element>? where S : Sequence {
-    // Proceed if collection contains at least one element.
-    var iterator = elements.makeIterator()
-    if let element = iterator.next() {
-        // Create node for first element.
-        var chain: Chain<S.Element>
-        chain.head = Node(element)
-        chain.tail = chain.head
-
-        // Create nodes for remaining elements.
-        while let element = iterator.next() {
-            let current = Node(element)
-            chain.tail.next = current
-            chain.tail = current
-        }
-
-        return chain
-    }
-
-    return nil
-}
-
-fileprivate func cloneChain<Element>(first: Node<Element>, last: Node<Element>) -> Chain<Element> {
-    // Clone first node.
-    var chain: Chain<Element>
-    chain.head = Node(first.element)
-    chain.tail = chain.head
-
-    var node = first.next
-    let limit = last.next
-
-    // Clone remaining nodes.
-    while node !== limit {
-        let clone = Node(node!.element)
-        chain.tail.next = clone
-        chain.tail = clone
-
-        node = node!.next
-    }
-
-    return chain
-}
-
-public final class SinglyLinkedListNode<Element> {
-    fileprivate var element: Element!
-    fileprivate(set) public var next: SinglyLinkedListNode<Element>? = nil
-
-    fileprivate init() {
-    }
-
-    init(_ element: Element!) {
-        self.element = element
-    }
-
-    public var value: Element {
-        return element!
-    }
-}
-
 public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
     private let uniqueness: AnyObject
-    private var current: Node<Element>?
-    private let last: Node<Element>?
+    private var current: SinglyLinkedListNode<Element>?
+    private let last: SinglyLinkedListNode<Element>?
 
-    fileprivate init(uniqueness: AnyObject, first: Node<Element>?, last: Node<Element>?) {
+    fileprivate init(uniqueness: AnyObject, first: SinglyLinkedListNode<Element>?, last: SinglyLinkedListNode<Element>?) {
         self.uniqueness = uniqueness
         self.current = first
         self.last = last
@@ -109,15 +47,15 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
 }
 
 fileprivate final class UnsafeSinglyLinkedList<Element> {
-    var head: Node<Element>
-    var tail: Node<Element>
+    var head: SinglyLinkedListNode<Element>
+    var tail: SinglyLinkedListNode<Element>
 
     init() {
-        head = Node()
+        head = SinglyLinkedListNode()
         tail = head
     }
 
-    private init(head: Node<Element>, tail: Node<Element>) {
+    private init(head: SinglyLinkedListNode<Element>, tail: SinglyLinkedListNode<Element>) {
         self.head = head
         self.tail = tail
     }
@@ -127,9 +65,9 @@ fileprivate final class UnsafeSinglyLinkedList<Element> {
         return UnsafeSinglyLinkedList(head: clonedChain.head, tail: clonedChain.tail)
     }
 
-    func makeCloneSkippingInners(first: inout Node<Element>, last: inout Node<Element>) -> UnsafeSinglyLinkedList<Element> {
+    func makeCloneSkippingInners(first: inout SinglyLinkedListNode<Element>, last: inout SinglyLinkedListNode<Element>) -> UnsafeSinglyLinkedList<Element> {
         let leadingChain = cloneChain(first: head, last: first)
-        var trailingHead: Node<Element>? = nil
+        var trailingHead: SinglyLinkedListNode<Element>? = nil
         var clonedTail = leadingChain.tail
 
         if let next = first !== last ? last : last.next {
@@ -144,47 +82,6 @@ fileprivate final class UnsafeSinglyLinkedList<Element> {
         first = leadingChain.tail
 
         return UnsafeSinglyLinkedList(head: leadingChain.head, tail: clonedTail)
-    }
-
-    func attach(node: Node<Element>) {
-        attach(node: node, after: tail)
-    }
-
-    func attach(node: Node<Element>, after last: Node<Element>) {
-        attach(chain: (head: node, tail: node), after: last)
-    }
-
-    func attach(chain: Chain<Element>) {
-        attach(chain: chain, after: tail)
-    }
-
-    func attach(chain: Chain<Element>, after last: Node<Element>) {
-        attach(chain: chain, after: last, skipping: last)
-    }
-
-    func attach(chain: Chain<Element>, after first: Node<Element>, skipping last: Node<Element>) {
-        let next = last.next    // In case `first` and `last` point to the same node.
-        first.next = chain.head
-        chain.tail.next = next
-
-        if last === tail {
-            tail = chain.tail
-        }
-    }
-
-    func abandon(after node: Node<Element>) -> Element {
-        let next = node.next!
-        abandon(after: node, including: next)
-
-        return next.element
-    }
-
-    func abandon(after first: Node<Element>, including last: Node<Element>) {
-        first.next = last.next
-
-        if last === tail {
-            tail = first
-        }
     }
 }
 
@@ -341,10 +238,10 @@ extension SinglyLinkedList : LinkedCollection {
             if !slice.isEmpty {
                 // Slice has at least one element.
                 let chain = (head: slice.unsafe.head.next!, tail: slice.unsafe.tail)
-                unsafe.attach(chain: chain, after: first, skipping: last)
+                attach(chain: chain, after: first, skipping: last, revise: &unsafe.tail)
             } else {
                 // Slice has no element.
-                unsafe.abandon(after: first, including: last)
+                abandon(after: first, including: last, revise: &unsafe.tail)
             }
         }
     }
@@ -366,13 +263,13 @@ extension SinglyLinkedList : RangeReplaceableCollection {
 
     public mutating func append(_ newElement: Element) {
         ensureUniqueBox()
-        unsafe.attach(node: Node(newElement))
+        attach(node: Node(newElement), after: &unsafe.tail)
     }
 
     public mutating func append<S>(contentsOf newElements: S) where S : Sequence, Element == S.Element {
-        if let chain = makeChain(newElements) {
+        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
             ensureUniqueBox()
-            unsafe.attach(chain: chain)
+            attach(chain: chain, after: &unsafe.tail)
         }
     }
 
@@ -382,23 +279,23 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = i.previous
         ensureUniqueWithMark(&last)
 
-        unsafe.attach(node: Node(newElement), after: last)
+        attach(node: Node(newElement), after: last, revise: &unsafe.tail)
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
         failEarlyInsertionIndexCheck(i)
 
-        if let chain = makeChain(newElements) {
+        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
             var last = i.previous
             ensureUniqueWithMark(&last)
 
-            unsafe.attach(chain: chain, after: last)
+            attach(chain: chain, after: last, revise: &unsafe.tail)
         }
     }
 
     public mutating func removeFirst() -> Element {
         ensureUniqueBox()
-        return unsafe.abandon(after: unsafe.head)
+        return abandon(after: unsafe.head, revise: &unsafe.tail)
     }
 
     public mutating func remove(at i: Index) -> Element {
@@ -407,7 +304,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var node = i.previous
         ensureUniqueWithMark(&node)
 
-        return unsafe.abandon(after: node)
+        return abandon(after: node, revise: &unsafe.tail)
     }
 
     public mutating func removeSubrange(_ bounds: Range<Index>) {
@@ -417,7 +314,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = bounds.upperBound.previous
         ensureUniqueSkippingInners(&first, &last)
 
-        unsafe.abandon(after: first, including: last)
+        abandon(after: first, including: last, revise: &unsafe.tail)
     }
 
     public mutating func removeAll(keepingCapacity keepCapacity: Bool = false) {
@@ -425,7 +322,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = unsafe.tail
         ensureUniqueSkippingInners(&first, &last)
 
-        unsafe.abandon(after: first, including: last)
+        abandon(after: first, including: last, revise: &unsafe.tail)
     }
 
     public mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Element == C.Element {
@@ -435,10 +332,10 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = subrange.upperBound.previous
         ensureUniqueSkippingInners(&first, &last)
 
-        if let chain = makeChain(newElements) {
-            unsafe.attach(chain: chain, after: first, skipping: last)
+        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
+            attach(chain: chain, after: first, skipping: last, revise: &unsafe.tail)
         } else {
-            unsafe.abandon(after: first, including: last)
+            abandon(after: first, including: last, revise: &unsafe.tail)
         }
     }
 }
