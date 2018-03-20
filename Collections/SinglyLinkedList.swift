@@ -91,15 +91,9 @@ fileprivate final class UnsafeSinglyLinkedList<Element> {
 
 public struct SinglyLinkedList<Element> {
     private var unsafe: UnsafeSinglyLinkedList<Element>
-    private var range: Range<Index>? // For slice index compatibility
 
     public init() {
         unsafe = UnsafeSinglyLinkedList()
-    }
-
-    private init(list: SinglyLinkedList<Element>, bounds: Range<Index>) {
-        range = bounds
-        unsafe = list.unsafe
     }
 
     public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
@@ -128,19 +122,27 @@ public struct SinglyLinkedList<Element> {
         unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
     }
 
-    private func failEarlyInsertionIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe, "Invalid Index")
+    private func checkSelfIndex(_ index: Index) {
+        precondition(index.identity === unsafe,
+                     "Index does not belong to this linked list")
     }
 
-    private func failEarlyRetrievalIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe, "Invalid Index")
-        precondition(index.previous !== unsafe.tail, "Index out of bounds")
+    private func checkValidIndex(_ index: Index) {
+        checkSelfIndex(index)
+        precondition(index.previous !== unsafe.tail,
+                     "Index is out of bounds")
     }
 
-    private func failEarlyRangeCheck(_ range: Range<Index>) {
-        precondition(
-            range.lowerBound.identity === unsafe && range.upperBound.identity === unsafe,
-            "Invalid Range Bounds")
+    private func checkNonEmpty() {
+        precondition(!isEmpty,
+                     "Linked list is empty")
+    }
+
+    private func checkValidRange(_ range: Range<Index>) {
+        precondition(range.lowerBound.identity === unsafe,
+                     "Range start index does not belong to this linked list")
+        precondition(range.upperBound.identity === unsafe,
+                     "Range end index does not belong to this linked list")
     }
 }
 
@@ -152,25 +154,16 @@ extension SinglyLinkedList : Sequence {
     }
 }
 
-extension SinglyLinkedList : LinkedCollection {
+extension SinglyLinkedList : LinkedCollection, MutableCollection {
     public typealias Index = SinglyLinkedListIndex<Element>
     public typealias Node = SinglyLinkedListNode<Element>
-    public typealias SubSequence = SinglyLinkedList<Element>
 
     public var startIndex: Index {
-        if range == nil {
-            return Index(identity: unsafe, offset: 0, previous: unsafe.head)
-        }
-
-        return range!.lowerBound
+        return Index(identity: unsafe, offset: 0, previous: unsafe.head)
     }
 
     public var endIndex: Index {
-        if range == nil {
-            return Index(identity: unsafe, offset: Int.max, previous: unsafe.tail)
-        }
-
-        return range!.upperBound
+        return Index(identity: unsafe, offset: Int.max, previous: unsafe.tail)
     }
 
     public func index(after i: Index) -> Index {
@@ -212,49 +205,31 @@ extension SinglyLinkedList : LinkedCollection {
     }
 
     public func node(at position: Index) -> Node {
-        failEarlyRetrievalIndexCheck(position)
+        checkValidIndex(position)
         return position.previous.next!
     }
 
     public subscript(position: Index) -> Element {
         get {
-            failEarlyRetrievalIndexCheck(position)
+            checkValidIndex(position)
             return position.previous.next!.element
         }
         set(element) {
-            failEarlyInsertionIndexCheck(position)
+            checkSelfIndex(position)
             position.previous.next!.element = element
         }
     }
 
-    public subscript(bounds: Range<Index>) -> SinglyLinkedList<Element> {
+    public subscript(bounds: Range<Index>) -> SubSequence {
         get {
-            failEarlyRangeCheck(bounds)
-            return SinglyLinkedList(list: self, bounds: bounds)
-        }
-        set(slice) {
-            failEarlyRangeCheck(bounds)
-
-            var first = bounds.lowerBound.previous
-            var last = bounds.upperBound.previous
-            ensureUnique(skippingAfter:&first, skippingBefore:&last)
-
-            if !slice.isEmpty {
-                // Clone the slice nodes.
-                var mark = slice.startIndex.previous
-                let chain = cloneChain(SinglyLinkedListChain(head: slice.startIndex.previous, tail: slice.endIndex.previous), mark: &mark)
-
-                attach(chain: chain, after: first, skipping: last, revise: &unsafe.tail)
-            } else {
-                // Slice has no element.
-                abandon(after: first, including: last, revise: &unsafe.tail)
-            }
+            checkValidRange(bounds)
+            return MutableRangeReplaceableSlice(base: self, bounds: bounds)
         }
     }
 
     public mutating func swapAt(_ i: Index, _ j: Index) {
-        failEarlyRetrievalIndexCheck(i)
-        failEarlyRetrievalIndexCheck(j)
+        checkValidIndex(i)
+        checkValidIndex(j)
 
         let first = i.previous.next!
         let second = j.previous.next!
@@ -280,7 +255,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func insert(_ newElement: Element, at i: Index) {
-        failEarlyInsertionIndexCheck(i)
+        checkSelfIndex(i)
 
         var last = i.previous
         ensureUnique(mark: &last)
@@ -289,7 +264,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
-        failEarlyInsertionIndexCheck(i)
+        checkSelfIndex(i)
 
         if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
             var last = i.previous
@@ -300,12 +275,15 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func removeFirst() -> Element {
+        checkNonEmpty()
         ensureUnique()
+
         return abandon(after: unsafe.head, revise: &unsafe.tail)
     }
 
     public mutating func remove(at i: Index) -> Element {
-        failEarlyRetrievalIndexCheck(i)
+        checkNonEmpty()
+        checkValidIndex(i)
 
         var node = i.previous
         ensureUnique(mark: &node)
@@ -314,7 +292,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func removeSubrange(_ bounds: Range<Index>) {
-        failEarlyRangeCheck(bounds)
+        checkValidRange(bounds)
 
         var first = bounds.lowerBound.previous
         var last = bounds.upperBound.previous
@@ -332,7 +310,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Element == C.Element {
-        failEarlyRangeCheck(subrange)
+        checkValidRange(subrange)
 
         var first = subrange.lowerBound.previous
         var last = subrange.upperBound.previous
