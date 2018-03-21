@@ -8,14 +8,14 @@
 
 import Foundation
 
-fileprivate typealias Node<Element> = LinkedListNode<Element>
+// MARK: - LinkedListIterator
 
 public struct LinkedListIterator<Element> : IteratorProtocol {
     private let uniqueness: AnyObject
-    private var current: Node<Element>?
-    private let last: Node<Element>?
+    private var current: LinkedListNode<Element>?
+    private let last: LinkedListNode<Element>?
 
-    fileprivate init(uniqueness: AnyObject, first: Node<Element>?, last: Node<Element>?) {
+    fileprivate init(uniqueness: AnyObject, first: LinkedListNode<Element>?, last: LinkedListNode<Element>?) {
         self.uniqueness = uniqueness
         self.current = first
         self.last = last
@@ -34,10 +34,12 @@ public struct LinkedListIterator<Element> : IteratorProtocol {
     }
 }
 
+// MARK: - LinkedListIndex
+
 public struct LinkedListIndex<Element> : Comparable {
-    fileprivate unowned var identity: AnyObject
-    fileprivate var offset: Int
-    fileprivate var node: LinkedListNode<Element>
+    unowned var identity: AnyObject
+    var offset: Int
+    var node: LinkedListNode<Element>
 
     public static func ==(lhs: LinkedListIndex, rhs: LinkedListIndex) -> Bool {
         return lhs.node === rhs.node
@@ -48,11 +50,13 @@ public struct LinkedListIndex<Element> : Comparable {
     }
 }
 
-fileprivate final class UnsafeLinkedList<Element> {
-    var head: Node<Element>
+// MARK: - UnsafeLinkedList
+
+final class UnsafeLinkedList<Element> {
+    var head: LinkedListNode<Element>
 
     init() {
-        head = Node()
+        head = LinkedListNode()
         head.next = head
         head.previous = head
     }
@@ -66,21 +70,15 @@ fileprivate final class UnsafeLinkedList<Element> {
         self.head = head
     }
 
-    private init(chain: LinkedListChain<Element>) {
-        // Make the chain circular.
+    func makeClone(mark node: inout LinkedListNode<Element>) -> UnsafeLinkedList<Element> {
+        let chain = LinkedListChain(head: head, tail: head.previous!)
         chain.tail.next = chain.head
         chain.head.previous = chain.tail
 
-        // Setup head
-        head = chain.head
+        return UnsafeLinkedList(head: chain.head)
     }
 
-    func makeClone(mark node: inout Node<Element>) -> UnsafeLinkedList<Element> {
-        let chain = LinkedListChain(head: head, tail: head.previous!)
-        return UnsafeLinkedList(chain: cloneChain(chain, mark: &node))
-    }
-
-    func makeClone(skippingAfter first: inout Node<Element>, skippingBefore last: inout Node<Element>) -> UnsafeLinkedList<Element> {
+    func makeClone(skippingAfter first: inout LinkedListNode<Element>, skippingBefore last: inout LinkedListNode<Element>) -> UnsafeLinkedList<Element> {
         guard first !== last else {
             let clone = makeClone(mark: &first)
             last = first
@@ -103,17 +101,13 @@ fileprivate final class UnsafeLinkedList<Element> {
     }
 }
 
+// MARK: - LinkedList
+
 public struct LinkedList<Element> {
     private var unsafe: UnsafeLinkedList<Element>
-    private var range: Range<Index>? // For slice index compatibility
 
     public init() {
         unsafe = UnsafeLinkedList()
-    }
-
-    private init(list: LinkedList<Element>, bounds: Range<Index>) {
-        range = bounds
-        unsafe = list.unsafe
     }
 
     public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
@@ -127,79 +121,77 @@ public struct LinkedList<Element> {
     }
 
     private mutating func ensureUnique(mark node: inout Node) {
-        if isKnownUniquelyReferenced(&unsafe) {
-            return
+        if !isKnownUniquelyReferenced(&unsafe) {
+            unsafe = unsafe.makeClone(mark: &node)
         }
-
-        unsafe = unsafe.makeClone(mark: &node)
     }
 
     private mutating func ensureUnique(skippingAfter first: inout Node, skippingBefore last: inout Node) {
-        if isKnownUniquelyReferenced(&unsafe) {
-            return
+        if !isKnownUniquelyReferenced(&unsafe) {
+            unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
         }
-
-        unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
     }
 
     private mutating func ensureUnique(skipAll: Bool) {
-        if isKnownUniquelyReferenced(&unsafe) {
-            return
+        if !isKnownUniquelyReferenced(&unsafe) {
+            unsafe = UnsafeLinkedList()
         }
-
-        unsafe = UnsafeLinkedList()
     }
 
-    private func failEarlyInsertionIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe, "Invalid Index")
+    private func checkSelfIndex(_ index: Index) {
+        precondition(index.identity === unsafe,
+                     "Index does not belong to this linked list")
     }
 
-    private func failEarlyRetrievalIndexCheck(_ index: Index) {
-        precondition(index.identity === unsafe, "Invalid Index")
-        precondition(index.node !== unsafe.head, "Index out of bounds")
+    private func checkValidIndex(_ index: Index) {
+        checkSelfIndex(index)
+        precondition(index.node !== unsafe.head,
+                     "Index is out of bounds")
     }
 
-    private func failEarlyRangeCheck(_ range: Range<Index>) {
-        precondition(
-            range.lowerBound.identity === unsafe && range.upperBound.identity === unsafe,
-            "Invalid Range Bounds")
+    private func checkNotEmpty() {
+        precondition(!isEmpty,
+                     "Linked list is empty")
+    }
+
+    private func checkValidRange(_ range: Range<Index>) {
+        precondition(range.lowerBound.identity === unsafe,
+                     "Range start index does not belong to this linked list")
+        precondition(range.upperBound.identity === unsafe,
+                     "Range end index does not belong to this linked list")
     }
 }
+
+// MARK: - Sequence
 
 extension LinkedList : Sequence {
     public typealias Iterator = LinkedListIterator<Element>
 
     public func makeIterator() -> Iterator {
-        return Iterator(uniqueness: unsafe, first: unsafe.head.next!, last: unsafe.head.previous!)
+        return LinkedListIterator(uniqueness: unsafe,
+                                  first: unsafe.head.next!,
+                                  last: unsafe.head.previous!)
     }
 }
+
+// MARK: - LinkedCollection
 
 extension LinkedList : LinkedCollection {
     public typealias Index = LinkedListIndex<Element>
     public typealias Node = LinkedListNode<Element>
-    public typealias SubSequence = LinkedList<Element>
 
     public var startIndex: Index {
-        if range == nil {
-            return Index(identity: unsafe, offset: 0, node: unsafe.head.next!)
-        }
-
-        return range!.lowerBound
+        return Index(identity: unsafe, offset: 0, node: unsafe.head.next!)
     }
 
     public var endIndex: Index {
-        if range == nil {
-            return Index(identity: unsafe, offset: Int.max, node: unsafe.head)
-        }
-
-        return range!.upperBound
+        return Index(identity: unsafe, offset: Int.max, node: unsafe.head)
     }
 
     public func index(after i: Index) -> Index {
-        return Index(
-            identity: i.identity,
-            offset: i.offset + 1,
-            node: i.node.next!)
+        return Index(identity: i.identity,
+                     offset: i.offset + 1,
+                     node: i.node.next!)
     }
 
     public func formIndex(after i: inout Index) {
@@ -211,11 +203,11 @@ extension LinkedList : LinkedCollection {
         var distance: Int = 0
 
         let last = end.node
-        var node: Node? = start.node
+        var node: Node! = start.node
 
         while node !== last {
             distance += 1
-            node = node?.next
+            node = node.next
         }
 
         return distance
@@ -239,58 +231,12 @@ extension LinkedList : LinkedCollection {
     }
 
     public func node(at position: Index) -> Node {
-        failEarlyRetrievalIndexCheck(position)
+        checkValidIndex(position)
         return position.node
     }
-
-    public subscript(position: Index) -> Element {
-        get {
-            failEarlyRetrievalIndexCheck(position)
-            return position.node.element
-        }
-        set(element) {
-            failEarlyInsertionIndexCheck(position)
-            position.node.element = element
-        }
-    }
-
-    public subscript(bounds: Range<Index>) -> LinkedList<Element> {
-        get {
-            failEarlyRangeCheck(bounds)
-            return LinkedList(list: self, bounds: bounds)
-        }
-        set(slice) {
-            failEarlyRangeCheck(bounds)
-
-            var first = bounds.lowerBound.node
-            var last = bounds.upperBound.node
-            ensureUnique(skippingAfter: &first, skippingBefore: &last)
-
-            if !slice.isEmpty {
-                // Clone the slice nodes.
-                var mark = slice.startIndex.node
-                let chain = cloneChain(LinkedListChain(head: slice.startIndex.node, tail: slice.endIndex.node.previous!), mark: &mark)
-                
-                attach(chain: chain, after: first.previous!, before: last)
-            } else {
-                // Slice has no element.
-                abandon(after: first.previous!, before: last)
-            }
-        }
-    }
-
-    public mutating func swapAt(_ i: Index, _ j: Index) {
-        failEarlyRetrievalIndexCheck(i)
-        failEarlyRetrievalIndexCheck(j)
-
-        let first = i.node
-        let second = j.node
-
-        let temp = first.element
-        first.element = second.element
-        second.element = temp
-    }
 }
+
+// MARK: - BidirectionalCollection
 
 extension LinkedList : BidirectionalCollection {
     public func formIndex(before i: inout Index) {
@@ -299,10 +245,9 @@ extension LinkedList : BidirectionalCollection {
     }
 
     public func index(before i: Index) -> Index {
-        return Index(
-            identity: i.identity,
-            offset: i.offset + 1,
-            node: i.node.previous!)
+        return Index(identity: i.identity,
+                     offset: i.offset + 1,
+                     node: i.node.previous!)
     }
 
     public var last: Element? {
@@ -315,8 +260,43 @@ extension LinkedList : BidirectionalCollection {
     }
 }
 
-extension LinkedList : RangeReplaceableCollection {
+// MARK: - MutableCollection
 
+extension LinkedList : MutableCollection {
+    public subscript(position: Index) -> Element {
+        get {
+            checkValidIndex(position)
+            return position.node.element
+        }
+        set(element) {
+            checkSelfIndex(position)
+            position.node.element = element
+        }
+    }
+
+    public subscript(bounds: Range<Index>) -> SubSequence {
+        get {
+            checkValidRange(bounds)
+            return MutableRangeReplaceableBidirectionalSlice(base: self, bounds: bounds)
+        }
+    }
+
+    public mutating func swapAt(_ i: Index, _ j: Index) {
+        checkValidIndex(i)
+        checkValidIndex(j)
+
+        let first = i.node
+        let second = j.node
+
+        let temp = first.element
+        first.element = second.element
+        second.element = temp
+    }
+}
+
+// MARK: - RangeReplaceableCollection
+
+extension LinkedList : RangeReplaceableCollection {
     public mutating func append(_ newElement: Element) {
         ensureUnique()
         attach(node: Node(newElement), after: unsafe.head.previous!)
@@ -330,7 +310,7 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func insert(_ newElement: Element, at i: Index) {
-        failEarlyInsertionIndexCheck(i)
+        checkSelfIndex(i)
 
         var node = i.node
         ensureUnique(mark: &node)
@@ -339,7 +319,7 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
-        failEarlyInsertionIndexCheck(i)
+        checkSelfIndex(i)
 
         if let chain: LinkedListChain<Element> = makeChain(newElements) {
             var node = i.node
@@ -350,17 +330,22 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func removeFirst() -> Element {
+        checkNotEmpty()
         ensureUnique()
+
         return abandon(node: unsafe.head.next!)
     }
 
     public mutating func removeLast() -> Element {
+        checkNotEmpty()
         ensureUnique()
+
         return abandon(node: unsafe.head.previous!)
     }
 
     public mutating func remove(at i: Index) -> Element {
-        failEarlyRetrievalIndexCheck(i)
+        checkValidIndex(i)
+        checkNotEmpty()
 
         var node = i.node
         ensureUnique(mark: &node)
@@ -369,7 +354,7 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func removeSubrange(_ bounds: Range<Index>) {
-        failEarlyRangeCheck(bounds)
+        checkValidRange(bounds)
 
         var first = bounds.lowerBound.node
         var last = bounds.upperBound.node
@@ -384,7 +369,7 @@ extension LinkedList : RangeReplaceableCollection {
     }
 
     public mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Element == C.Element {
-        failEarlyRangeCheck(subrange)
+        checkValidRange(subrange)
 
         var first = subrange.lowerBound.node
         var last = subrange.upperBound.node

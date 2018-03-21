@@ -47,10 +47,9 @@ extension DefaultNodes : Collection {
     }
 
     public subscript(bounds: Range<Index>) -> DefaultNodes<Elements> {
-        return DefaultNodes(
-            elements: elements,
-            startIndex: bounds.lowerBound,
-            endIndex: bounds.upperBound)
+        return DefaultNodes(elements: elements,
+                            startIndex: bounds.lowerBound,
+                            endIndex: bounds.upperBound)
     }
 
     public func index(after i: Index) -> Index {

@@ -8,6 +8,8 @@
 
 import Foundation
 
+// MARK: - SinglyLinkedListIterator
+
 public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
     private let uniqueness: AnyObject
     private var current: SinglyLinkedListNode<Element>?
@@ -32,10 +34,12 @@ public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
     }
 }
 
+// MARK: - SinglyLinkedListIndex
+
 public struct SinglyLinkedListIndex<Element> : Comparable {
-    fileprivate unowned var identity: AnyObject
-    fileprivate var offset: Int
-    fileprivate var previous: SinglyLinkedListNode<Element>
+    unowned var identity: AnyObject
+    var offset: Int
+    var previous: SinglyLinkedListNode<Element>
 
     public static func ==(lhs: SinglyLinkedListIndex, rhs: SinglyLinkedListIndex) -> Bool {
         return lhs.previous === rhs.previous
@@ -46,7 +50,9 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
     }
 }
 
-fileprivate final class UnsafeSinglyLinkedList<Element> {
+// MARK: - UnsafeSinglyLinkedList
+
+final class UnsafeSinglyLinkedList<Element> {
     var head: SinglyLinkedListNode<Element>
     var tail: SinglyLinkedListNode<Element>
 
@@ -89,6 +95,8 @@ fileprivate final class UnsafeSinglyLinkedList<Element> {
     }
 }
 
+// MARK: - SinglyLinkedList
+
 public struct SinglyLinkedList<Element> {
     private var unsafe: UnsafeSinglyLinkedList<Element>
 
@@ -107,19 +115,15 @@ public struct SinglyLinkedList<Element> {
     }
 
     private mutating func ensureUnique(mark node: inout Node) {
-        if isKnownUniquelyReferenced(&unsafe) {
-            return
+        if !isKnownUniquelyReferenced(&unsafe) {
+            unsafe = unsafe.makeClone(mark: &node)
         }
-
-        unsafe = unsafe.makeClone(mark: &node)
     }
 
     private mutating func ensureUnique(skippingAfter first: inout Node, skippingBefore last: inout Node) {
-        if isKnownUniquelyReferenced(&unsafe) {
-            return
+        if !isKnownUniquelyReferenced(&unsafe) {
+            unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
         }
-
-        unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
     }
 
     private func checkSelfIndex(_ index: Index) {
@@ -133,7 +137,7 @@ public struct SinglyLinkedList<Element> {
                      "Index is out of bounds")
     }
 
-    private func checkNonEmpty() {
+    private func checkNotEmpty() {
         precondition(!isEmpty,
                      "Linked list is empty")
     }
@@ -146,15 +150,21 @@ public struct SinglyLinkedList<Element> {
     }
 }
 
+// MARK: - Sequence
+
 extension SinglyLinkedList : Sequence {
     public typealias Iterator = SinglyLinkedListIterator<Element>
 
     public func makeIterator() -> Iterator {
-        return Iterator(uniqueness: unsafe, first: unsafe.head.next, last: unsafe.tail.next)
+        return SinglyLinkedListIterator(uniqueness: unsafe,
+                                        first: unsafe.head.next,
+                                        last: unsafe.tail.next)
     }
 }
 
-extension SinglyLinkedList : LinkedCollection, MutableCollection {
+// MARK: - LinkedCollection
+
+extension SinglyLinkedList : LinkedCollection {
     public typealias Index = SinglyLinkedListIndex<Element>
     public typealias Node = SinglyLinkedListNode<Element>
 
@@ -167,10 +177,9 @@ extension SinglyLinkedList : LinkedCollection, MutableCollection {
     }
 
     public func index(after i: Index) -> Index {
-        return Index(
-            identity: i.identity,
-            offset: i.offset + 1,
-            previous: i.previous.next!)
+        return Index(identity: i.identity,
+                     offset: i.offset + 1,
+                     previous: i.previous.next!)
     }
 
     public func formIndex(after i: inout Index) {
@@ -186,7 +195,7 @@ extension SinglyLinkedList : LinkedCollection, MutableCollection {
 
         while node !== last {
             distance += 1
-            node = node?.next
+            node = node!.next
         }
 
         return distance
@@ -208,7 +217,11 @@ extension SinglyLinkedList : LinkedCollection, MutableCollection {
         checkValidIndex(position)
         return position.previous.next!
     }
+}
 
+// MARK: - MutableCollection
+
+extension SinglyLinkedList : MutableCollection {
     public subscript(position: Index) -> Element {
         get {
             checkValidIndex(position)
@@ -239,6 +252,8 @@ extension SinglyLinkedList : LinkedCollection, MutableCollection {
         second.element = temp
     }
 }
+
+// MARK: - RangeReplaceableCollection
 
 extension SinglyLinkedList : RangeReplaceableCollection {
 
@@ -275,15 +290,15 @@ extension SinglyLinkedList : RangeReplaceableCollection {
     }
 
     public mutating func removeFirst() -> Element {
-        checkNonEmpty()
+        checkNotEmpty()
         ensureUnique()
 
         return abandon(after: unsafe.head, revise: &unsafe.tail)
     }
 
     public mutating func remove(at i: Index) -> Element {
-        checkNonEmpty()
         checkValidIndex(i)
+        checkNotEmpty()
 
         var node = i.previous
         ensureUnique(mark: &node)
