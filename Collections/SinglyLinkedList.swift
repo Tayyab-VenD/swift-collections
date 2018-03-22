@@ -10,24 +10,27 @@ import Foundation
 
 // MARK: - SinglyLinkedListIterator
 
-public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
-    private let uniqueness: AnyObject
-    private var current: SinglyLinkedListNode<Element>?
-    private let last: SinglyLinkedListNode<Element>?
+public struct SinglyLinkedListIterator<Element> {
+    private let owner: UnsafeForwardList<Element>
+    private var node: UnsafeForwardNode<Element>!
+    private let last: UnsafeForwardNode<Element>!
 
-    fileprivate init(uniqueness: AnyObject, first: SinglyLinkedListNode<Element>?, last: SinglyLinkedListNode<Element>?) {
-        self.uniqueness = uniqueness
-        self.current = first
+    init(owner: UnsafeForwardList<Element>,
+         first: UnsafeForwardNode<Element>!,
+         last: UnsafeForwardNode<Element>!) {
+        self.owner = owner
+        self.node = first
         self.last = last
     }
+}
 
+extension SinglyLinkedListIterator : IteratorProtocol {
     public mutating func next() -> Element? {
-        if current !== last {
+        if node != last {
             defer {
-                current = current?.next
+                node = node.next
             }
-
-            return current!.element
+            return node.element!
         }
 
         return nil
@@ -37,26 +40,26 @@ public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
 // MARK: - SinglyLinkedListIndex
 
 public struct SinglyLinkedListIndex<Element> : Comparable {
-    unowned var identity: AnyObject
-    var offset: Int
-    var previous: SinglyLinkedListNode<Element>
+    unowned(unsafe) var owner: UnsafeForwardList<Element>
+    var tag: Int
+    var previous: UnsafeForwardNode<Element>
 
     public static func ==(lhs: SinglyLinkedListIndex, rhs: SinglyLinkedListIndex) -> Bool {
-        return lhs.previous === rhs.previous
+        return lhs.previous == rhs.previous
     }
 
     public static func <(lhs: SinglyLinkedListIndex, rhs: SinglyLinkedListIndex) -> Bool {
-        return (lhs.offset < rhs.offset && lhs.previous !== rhs.previous)
+        return (lhs.tag < rhs.tag && lhs.tag != rhs.tag)
     }
 }
 
 // MARK: - SinglyLinkedList
 
 public struct SinglyLinkedList<Element> {
-    private var unsafe: UnsafeSinglyLinkedList<Element>
+    private var unsafe: UnsafeForwardList<Element>
 
     public init() {
-        unsafe = UnsafeSinglyLinkedList()
+        unsafe = UnsafeForwardList()
     }
 
     public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
@@ -69,26 +72,27 @@ public struct SinglyLinkedList<Element> {
         ensureUnique(mark: &mark)
     }
 
-    private mutating func ensureUnique(mark node: inout Node) {
+    private mutating func ensureUnique(mark node: inout UnsafeForwardNode<Element>) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = unsafe.makeClone(mark: &node)
+            unsafe = unsafe.clone(mark: &node)
         }
     }
 
-    private mutating func ensureUnique(skippingAfter first: inout Node, skippingBefore last: inout Node) {
+    private mutating func ensureUnique(skippingAfter first: inout UnsafeForwardNode<Element>,
+                                       skippingBefore last: inout UnsafeForwardNode<Element>) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
+            unsafe = unsafe.clone(skippingAfter: &first, skippingBefore: &last)
         }
     }
 
     private func checkSelfIndex(_ index: Index) {
-        precondition(index.identity === unsafe,
+        precondition(index.owner === unsafe,
                      "Index does not belong to this linked list")
     }
 
     private func checkValidIndex(_ index: Index) {
         checkSelfIndex(index)
-        precondition(index.previous !== unsafe.tail,
+        precondition(index.previous != unsafe.tail,
                      "Index is out of bounds")
     }
 
@@ -98,9 +102,9 @@ public struct SinglyLinkedList<Element> {
     }
 
     private func checkValidRange(_ range: Range<Index>) {
-        precondition(range.lowerBound.identity === unsafe,
+        precondition(range.lowerBound.owner === unsafe,
                      "Range start index does not belong to this linked list")
-        precondition(range.upperBound.identity === unsafe,
+        precondition(range.upperBound.owner === unsafe,
                      "Range end index does not belong to this linked list")
     }
 }
@@ -111,7 +115,7 @@ extension SinglyLinkedList : Sequence {
     public typealias Iterator = SinglyLinkedListIterator<Element>
 
     public func makeIterator() -> Iterator {
-        return SinglyLinkedListIterator(uniqueness: unsafe,
+        return SinglyLinkedListIterator(owner: unsafe,
                                         first: unsafe.head.next,
                                         last: unsafe.tail.next)
     }
@@ -124,21 +128,21 @@ extension SinglyLinkedList : LinkedCollection {
     public typealias Node = SinglyLinkedListNode<Element>
 
     public var startIndex: Index {
-        return Index(identity: unsafe, offset: 0, previous: unsafe.head)
+        return Index(owner: unsafe, tag: 0, previous: unsafe.head)
     }
 
     public var endIndex: Index {
-        return Index(identity: unsafe, offset: Int.max, previous: unsafe.tail)
+        return Index(owner: unsafe, tag: Int.max, previous: unsafe.tail)
     }
 
     public func index(after i: Index) -> Index {
-        return Index(identity: i.identity,
-                     offset: i.offset + 1,
+        return Index(owner: i.owner,
+                     tag: i.tag + 1,
                      previous: i.previous.next!)
     }
 
     public func formIndex(after i: inout Index) {
-        i.offset += 1
+        i.tag += 1
         i.previous = i.previous.next!
     }
 
@@ -148,7 +152,7 @@ extension SinglyLinkedList : LinkedCollection {
         let last = end.previous.next
         var node = start.previous.next
 
-        while node !== last {
+        while node != last {
             distance += 1
             node = node!.next
         }
@@ -161,7 +165,7 @@ extension SinglyLinkedList : LinkedCollection {
     }
 
     public var isEmpty: Bool {
-        return unsafe.tail === unsafe.head
+        return unsafe.tail == unsafe.head
     }
 
     public var first: Element? {
@@ -170,7 +174,7 @@ extension SinglyLinkedList : LinkedCollection {
 
     public func node(at position: Index) -> Node {
         checkValidIndex(position)
-        return position.previous.next!
+        return position.previous.next!.instance
     }
 }
 
@@ -211,14 +215,13 @@ extension SinglyLinkedList : MutableCollection {
 // MARK: - RangeReplaceableCollection
 
 extension SinglyLinkedList : RangeReplaceableCollection {
-
     public mutating func append(_ newElement: Element) {
         ensureUnique()
-        unsafe.attach(node: Node.makeRetained(newElement))
+        unsafe.attach(node: UnsafeForwardNode.make(newElement))
     }
 
     public mutating func append<S>(contentsOf newElements: S) where S : Sequence, Element == S.Element {
-        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
+        if let chain = UnsafeForwardChain.make(newElements) {
             ensureUnique()
             unsafe.attach(chain: chain)
         }
@@ -230,13 +233,13 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = i.previous
         ensureUnique(mark: &last)
 
-        unsafe.attach(node: Node.makeRetained(newElement), after: last)
+        unsafe.attach(node: UnsafeForwardNode.make(newElement), after: last)
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
         checkSelfIndex(i)
 
-        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
+        if let chain = UnsafeForwardChain.make(newElements) {
             var last = i.previous
             ensureUnique(mark: &last)
 
@@ -286,7 +289,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         var last = subrange.upperBound.previous
         ensureUnique(skippingAfter: &first, skippingBefore: &last)
 
-        if let chain: SinglyLinkedListChain<Element> = makeChain(newElements) {
+        if let chain = UnsafeForwardChain.make(newElements) {
             unsafe.attach(chain: chain, after: first, skipping: last)
         } else {
             unsafe.abandon(after: first, including: last)
