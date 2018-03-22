@@ -8,17 +8,43 @@
 
 import Foundation
 
-typealias SinglyLinkedListChain<Element> = (head: SinglyLinkedListNode<Element>, tail: SinglyLinkedListNode<Element>)
+struct SinglyLinkedListChain<Element> {
+    unowned(unsafe) var head: SinglyLinkedListNode<Element>
+    unowned(unsafe) var tail: SinglyLinkedListNode<Element>
+}
 
 public final class SinglyLinkedListNode<Element> {
     var element: Element!
-    internal(set) public var next: SinglyLinkedListNode<Element>? = nil
+    var unext: Unmanaged<SinglyLinkedListNode<Element>>?
 
-    init() {
+    public var next: SinglyLinkedListNode<Element>? {
+        return unext?.takeUnretainedValue()
     }
 
-    init(_ element: Element!) {
+    @inline(__always)
+    static func makeRetained(_ element: Element! = nil) -> SinglyLinkedListNode<Element> {
+        return SinglyLinkedListNode<Element>(element).retain()
+    }
+
+    private init(_ element: Element!) {
         self.element = element
+    }
+
+    @inline(__always)
+    func unmanaged() -> Unmanaged<SinglyLinkedListNode<Element>> {
+        return Unmanaged.passUnretained(self)
+    }
+
+    @inline(__always)
+    func retain() -> SinglyLinkedListNode<Element> {
+        let _ = Unmanaged.passRetained(self)
+        return self
+    }
+
+    @inline(__always)
+    func release() {
+        unext = nil
+        Unmanaged.passUnretained(self).release()
     }
 
     public var value: Element {
@@ -30,15 +56,14 @@ func makeChain<S>(_ elements: S) -> SinglyLinkedListChain<S.Element>? where S : 
     // Proceed if collection contains at least one element.
     var iterator = elements.makeIterator()
     if let element = iterator.next() {
-        // Create node for first element.
-        var chain: SinglyLinkedListChain<S.Element>
-        chain.head = SinglyLinkedListNode(element)
-        chain.tail = chain.head
+        // Create node for first element and initialize the chain.
+        unowned(unsafe) let first = SinglyLinkedListNode.makeRetained(element)
+        var chain = SinglyLinkedListChain(head: first, tail: first)
 
         // Create nodes for remaining elements.
         while let element = iterator.next() {
-            let current = SinglyLinkedListNode(element)
-            chain.tail.next = current
+            unowned(unsafe) let current = SinglyLinkedListNode.makeRetained(element)
+            chain.tail.unext = current.unmanaged()
             chain.tail = current
         }
 
@@ -50,8 +75,8 @@ func makeChain<S>(_ elements: S) -> SinglyLinkedListChain<S.Element>? where S : 
 
 func cloneChain<E>(_ chain: SinglyLinkedListChain<E>, mark: inout SinglyLinkedListNode<E>) -> SinglyLinkedListChain<E> {
     // Clone first node.
-    let head = SinglyLinkedListNode(chain.head.element)
-    var tail = head
+    unowned(unsafe) let head = SinglyLinkedListNode.makeRetained(chain.head.element)
+    unowned(unsafe) var tail = head
 
     if mark === chain.head {
         mark = head
@@ -62,8 +87,8 @@ func cloneChain<E>(_ chain: SinglyLinkedListChain<E>, mark: inout SinglyLinkedLi
 
     // Clone remaining nodes.
     while node !== limit {
-        let clone = SinglyLinkedListNode(node!.element)
-        tail.next = clone
+        unowned(unsafe) let clone = SinglyLinkedListNode.makeRetained(node!.element)
+        tail.unext = clone.unmanaged()
         tail = clone
 
         if node === mark {
@@ -76,60 +101,121 @@ func cloneChain<E>(_ chain: SinglyLinkedListChain<E>, mark: inout SinglyLinkedLi
     return SinglyLinkedListChain(head: head, tail: tail)
 }
 
-func attach<E>(node: SinglyLinkedListNode<E>, after tail: inout SinglyLinkedListNode<E>) {
-    tail.next = node
-    tail = node
+func releaseChain<E>(_ chain: SinglyLinkedListChain<E>) {
+    unowned(unsafe) var node = chain.head
+    unowned(unsafe) let last = chain.tail
+
+    while node !== last {
+        unowned(unsafe) let next = node.next!
+        node.release()
+        node = next
+    }
+    node.release()
 }
 
-func attach<E>(node: SinglyLinkedListNode<E>,
-               after last: SinglyLinkedListNode<E>,
-               revise tail: inout SinglyLinkedListNode<E>) {
-    let next = last.next    // In case `first` and `last` point to the same node.
-    last.next = node
-    node.next = next
+// MARK: - UnsafeSinglyLinkedList
 
-    if last === tail {
+final class UnsafeSinglyLinkedList<Element> {
+    unowned(unsafe) var head: SinglyLinkedListNode<Element>
+    unowned(unsafe) var tail: SinglyLinkedListNode<Element>
+
+    init() {
+        head = SinglyLinkedListNode.makeRetained()
+        tail = head
+    }
+
+    deinit {
+        if let first = head.next {
+            releaseChain(SinglyLinkedListChain(head: first, tail: tail))
+        }
+    }
+
+    private init(head: SinglyLinkedListNode<Element>, tail: SinglyLinkedListNode<Element>) {
+        self.head = head
+        self.tail = tail
+    }
+
+    func makeClone(mark node: inout SinglyLinkedListNode<Element>) -> UnsafeSinglyLinkedList<Element> {
+        let chain = SinglyLinkedListChain(head: head, tail: tail)
+        let clone = cloneChain(chain, mark: &node)
+
+        return UnsafeSinglyLinkedList(head: clone.head, tail: clone.tail)
+    }
+
+    func makeClone(skippingAfter first: inout SinglyLinkedListNode<Element>, skippingBefore last: inout SinglyLinkedListNode<Element>) -> UnsafeSinglyLinkedList<Element> {
+        guard first !== last else {
+            unowned(unsafe) let clone = makeClone(mark: &first)
+            last = first
+
+            return clone
+        }
+
+        let leadingChain = cloneChain(SinglyLinkedListChain(head: head, tail: first), mark: &first)
+        let trailingChain = cloneChain(SinglyLinkedListChain(head: last, tail: tail), mark: &last)
+
+        // Attach leading and trailing chains.
+        leadingChain.tail.unext = trailingChain.head.unmanaged()
+
+        return UnsafeSinglyLinkedList(head: leadingChain.head, tail: trailingChain.tail)
+    }
+
+    func attach(node: SinglyLinkedListNode<Element>) {
+        tail.unext = node.unmanaged()
         tail = node
     }
-}
 
-func attach<E>(chain: SinglyLinkedListChain<E>, after tail: inout SinglyLinkedListNode<E>) {
-    tail.next = chain.head
-    tail = chain.tail
-}
+    func attach(node: SinglyLinkedListNode<Element>, after last: SinglyLinkedListNode<Element>) {
+        let next = last.next    // In case `first` and `last` point to the same node.
+        last.unext = node.unmanaged()
+        node.unext = next?.unmanaged()
 
-func attach<E>(chain: SinglyLinkedListChain<E>,
-               after last: SinglyLinkedListNode<E>,
-               revise tail: inout SinglyLinkedListNode<E>) {
-    attach(chain: chain, after: last, skipping: last, revise: &tail)
-}
+        if last === tail {
+            tail = node
+        }
+    }
 
-func attach<E>(chain: SinglyLinkedListChain<E>,
-               after first: SinglyLinkedListNode<E>,
-               skipping last: SinglyLinkedListNode<E>,
-               revise tail: inout SinglyLinkedListNode<E>) {
-    let next = last.next    // In case `first` and `last` point to the same node.
-    first.next = chain.head
-    chain.tail.next = next
-
-    if last === tail {
+    func attach(chain: SinglyLinkedListChain<Element>) {
+        tail.unext = chain.head.unmanaged()
         tail = chain.tail
     }
-}
 
-func abandon<E>(after node: SinglyLinkedListNode<E>, revise tail: inout SinglyLinkedListNode<E>) -> E {
-    let next = node.next!
-    abandon(after: node, including: next, revise: &tail)
+    func attach(chain: SinglyLinkedListChain<Element>, after last: SinglyLinkedListNode<Element>) {
+        attach(chain: chain, after: last, skipping: last)
+    }
 
-    return next.element
-}
+    func attach(chain: SinglyLinkedListChain<Element>,
+                after first: SinglyLinkedListNode<Element>,
+                skipping last: SinglyLinkedListNode<Element>) {
+        let next = last.next
+        if first !== last {
+            releaseChain(SinglyLinkedListChain(head: first.next!, tail: last))
+        }
 
-func abandon<E>(after first: SinglyLinkedListNode<E>,
-                including last: SinglyLinkedListNode<E>,
-                revise tail: inout SinglyLinkedListNode<E>) {
-    first.next = last.next
+        first.unext = chain.head.unmanaged()
+        chain.tail.unext = next?.unmanaged()
 
-    if last === tail {
-        tail = first
+        if last === tail {
+            tail = chain.tail
+        }
+    }
+
+    func abandon(after node: SinglyLinkedListNode<Element>) -> Element {
+        let next = node.next!
+        abandon(after: node, including: next)
+
+        return next.element
+    }
+
+    func abandon(after first: SinglyLinkedListNode<Element>, including last: SinglyLinkedListNode<Element>) {
+        let next = last.next
+        if first !== last {
+            releaseChain(SinglyLinkedListChain(head: first.next!, tail: last))
+        }
+
+        first.unext = next?.unmanaged()
+
+        if last === tail {
+            tail = first
+        }
     }
 }
