@@ -180,7 +180,7 @@ final class UnsafeList<Element> {
     }
 
     deinit {
-        UnsafeChain(head: head.previous, tail: head.next).release()
+        UnsafeChain(head: head, tail: head.previous).release()
     }
 
     func clone(marking nodes: inout [UnsafeNode<Element>]) -> UnsafeList<Element> {
