@@ -8,9 +8,7 @@
 
 import Foundation
 
-// MARK: - SinglyLinkedListIterator
-
-public struct SinglyLinkedListIterator<Element> {
+public struct SinglyLinkedListIterator<Element> : IteratorProtocol {
     private let owner: UnsafeForwardList<Element>
     private var node: UnsafeForwardNode<Element>!
     private let last: UnsafeForwardNode<Element>!
@@ -22,9 +20,7 @@ public struct SinglyLinkedListIterator<Element> {
         self.node = first
         self.last = last
     }
-}
 
-extension SinglyLinkedListIterator : IteratorProtocol {
     public mutating func next() -> Element? {
         if node != last {
             defer {
@@ -36,8 +32,6 @@ extension SinglyLinkedListIterator : IteratorProtocol {
         return nil
     }
 }
-
-// MARK: - SinglyLinkedListIndex
 
 public struct SinglyLinkedListIndex<Element> : Comparable {
     unowned(unsafe) var owner: UnsafeForwardList<Element>
@@ -52,8 +46,6 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
         return lhs.tag < rhs.tag
     }
 }
-
-// MARK: - SinglyLinkedList
 
 public struct SinglyLinkedList<Element> {
     private var unsafe: UnsafeForwardList<Element>

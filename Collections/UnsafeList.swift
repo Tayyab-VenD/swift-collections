@@ -33,8 +33,13 @@ public final class LinkedListNode<Element> {
     }
 }
 
-struct UnsafeNode<Element> {
+struct UnsafeNode<Element> : Equatable {
     unowned(unsafe) let instance: LinkedListNode<Element>
+
+    @inline(__always)
+    static func ==(lhs: UnsafeNode<Element>, rhs: UnsafeNode<Element>) -> Bool {
+        return lhs.instance === rhs.instance
+    }
 
     @inline(__always)
     static func make(_ element: Element! = nil) -> UnsafeNode<Element> {
@@ -91,13 +96,6 @@ struct UnsafeNode<Element> {
         instance.unsafeNext = nil
         instance.unsafePrevious = nil
         Unmanaged.passUnretained(instance).release()
-    }
-}
-
-extension UnsafeNode : Equatable {
-    @inline(__always)
-    static func ==(lhs: UnsafeNode<Element>, rhs: UnsafeNode<Element>) -> Bool {
-        return lhs.instance === rhs.instance
     }
 }
 

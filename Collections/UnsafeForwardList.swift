@@ -8,8 +8,6 @@
 
 import Foundation
 
-// MARK: - SinglyLinkedListNode
-
 public final class SinglyLinkedListNode<Element> {
     var optionalElement: Element!
     var unsafeNext: UnsafeForwardNode<Element>?
@@ -27,10 +25,13 @@ public final class SinglyLinkedListNode<Element> {
     }
 }
 
-// MARK: - UnsafeForwardNode
-
-struct UnsafeForwardNode<Element> {
+struct UnsafeForwardNode<Element> : Equatable {
     unowned(unsafe) let instance: SinglyLinkedListNode<Element>
+
+    @inline(__always)
+    static func ==(lhs: UnsafeForwardNode<Element>, rhs: UnsafeForwardNode<Element>) -> Bool {
+        return lhs.instance === rhs.instance
+    }
 
     @inline(__always)
     static func make(_ element: Element! = nil) -> UnsafeForwardNode<Element> {
@@ -77,15 +78,6 @@ struct UnsafeForwardNode<Element> {
         Unmanaged.passUnretained(instance).release()
     }
 }
-
-extension UnsafeForwardNode : Equatable {
-    @inline(__always)
-    static func ==(lhs: UnsafeForwardNode<Element>, rhs: UnsafeForwardNode<Element>) -> Bool {
-        return lhs.instance === rhs.instance
-    }
-}
-
-// MARK: - UnsafeForwardChain
 
 struct UnsafeForwardChain<Element> {
     var head: UnsafeForwardNode<Element>
@@ -150,8 +142,6 @@ struct UnsafeForwardChain<Element> {
         node.release()
     }
 }
-
-// MARK: - UnsafeForwardList
 
 final class UnsafeForwardList<Element> {
     var head: UnsafeForwardNode<Element>
