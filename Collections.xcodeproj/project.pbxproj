@@ -8,8 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		7D2F65D2204D4C57007F426E /* Collections.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D2F65C8204D4C57007F426E /* Collections.framework */; };
-		7D2F65D7204D4C57007F426E /* CollectionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2F65D6204D4C57007F426E /* CollectionsTests.swift */; };
+		7D2F65D7204D4C57007F426E /* SinglyLinkedListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2F65D6204D4C57007F426E /* SinglyLinkedListTests.swift */; };
 		7D2F65D9204D4C57007F426E /* Collections.h in Headers */ = {isa = PBXBuildFile; fileRef = 7D2F65CB204D4C57007F426E /* Collections.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		7D2F65E7204D4EC2007F426E /* SinglyLinkedList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2F65E6204D4EC2007F426E /* SinglyLinkedList.swift */; };
+		7D323A90205FA5D90096072D /* UnsafeForwardList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D323A8F205FA5D90096072D /* UnsafeForwardList.swift */; };
+		7D3287CF204FBFCE0082D7CE /* LinkedCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D3287CE204FBFCE0082D7CE /* LinkedCollection.swift */; };
+		7D5A38042057C02C001C8255 /* DoublyLinkedList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D5A38032057C02C001C8255 /* DoublyLinkedList.swift */; };
+		7DD9791D2063D79400F0CBA0 /* UnsafeList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD9791C2063D79400F0CBA0 /* UnsafeList.swift */; };
+		7DF06FAD20590A44001DE611 /* DoublyLinkedListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF06FAC20590A44001DE611 /* DoublyLinkedListTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,8 +33,14 @@
 		7D2F65CB204D4C57007F426E /* Collections.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Collections.h; sourceTree = "<group>"; };
 		7D2F65CC204D4C57007F426E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7D2F65D1204D4C57007F426E /* CollectionsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CollectionsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		7D2F65D6204D4C57007F426E /* CollectionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsTests.swift; sourceTree = "<group>"; };
+		7D2F65D6204D4C57007F426E /* SinglyLinkedListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinglyLinkedListTests.swift; sourceTree = "<group>"; };
 		7D2F65D8204D4C57007F426E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7D2F65E6204D4EC2007F426E /* SinglyLinkedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinglyLinkedList.swift; sourceTree = "<group>"; };
+		7D323A8F205FA5D90096072D /* UnsafeForwardList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnsafeForwardList.swift; sourceTree = "<group>"; };
+		7D3287CE204FBFCE0082D7CE /* LinkedCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedCollection.swift; sourceTree = "<group>"; };
+		7D5A38032057C02C001C8255 /* DoublyLinkedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoublyLinkedList.swift; sourceTree = "<group>"; };
+		7DD9791C2063D79400F0CBA0 /* UnsafeList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnsafeList.swift; sourceTree = "<group>"; };
+		7DF06FAC20590A44001DE611 /* DoublyLinkedListTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DoublyLinkedListTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,7 +84,12 @@
 			isa = PBXGroup;
 			children = (
 				7D2F65CB204D4C57007F426E /* Collections.h */,
+				7D5A38032057C02C001C8255 /* DoublyLinkedList.swift */,
 				7D2F65CC204D4C57007F426E /* Info.plist */,
+				7D3287CE204FBFCE0082D7CE /* LinkedCollection.swift */,
+				7D2F65E6204D4EC2007F426E /* SinglyLinkedList.swift */,
+				7D323A8F205FA5D90096072D /* UnsafeForwardList.swift */,
+				7DD9791C2063D79400F0CBA0 /* UnsafeList.swift */,
 			);
 			path = Collections;
 			sourceTree = "<group>";
@@ -80,7 +97,8 @@
 		7D2F65D5204D4C57007F426E /* CollectionsTests */ = {
 			isa = PBXGroup;
 			children = (
-				7D2F65D6204D4C57007F426E /* CollectionsTests.swift */,
+				7D2F65D6204D4C57007F426E /* SinglyLinkedListTests.swift */,
+				7DF06FAC20590A44001DE611 /* DoublyLinkedListTests.swift */,
 				7D2F65D8204D4C57007F426E /* Info.plist */,
 			);
 			path = CollectionsTests;
@@ -148,6 +166,7 @@
 				TargetAttributes = {
 					7D2F65C7204D4C57007F426E = {
 						CreatedOnToolsVersion = 9.2;
+						LastSwiftMigration = 0920;
 						ProvisioningStyle = Automatic;
 					};
 					7D2F65D0204D4C57007F426E = {
@@ -196,6 +215,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7D5A38042057C02C001C8255 /* DoublyLinkedList.swift in Sources */,
+				7DD9791D2063D79400F0CBA0 /* UnsafeList.swift in Sources */,
+				7D3287CF204FBFCE0082D7CE /* LinkedCollection.swift in Sources */,
+				7D323A90205FA5D90096072D /* UnsafeForwardList.swift in Sources */,
+				7D2F65E7204D4EC2007F426E /* SinglyLinkedList.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,7 +227,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7D2F65D7204D4C57007F426E /* CollectionsTests.swift in Sources */,
+				7D2F65D7204D4C57007F426E /* SinglyLinkedListTests.swift in Sources */,
+				7DF06FAD20590A44001DE611 /* DoublyLinkedListTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -334,6 +359,7 @@
 		7D2F65DD204D4C57007F426E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
@@ -346,6 +372,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mta.Collections;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -354,6 +381,7 @@
 		7D2F65DE204D4C57007F426E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
@@ -374,6 +402,7 @@
 		7D2F65E0204D4C57007F426E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = CollectionsTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
@@ -387,6 +416,7 @@
 		7D2F65E1204D4C57007F426E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = CollectionsTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
