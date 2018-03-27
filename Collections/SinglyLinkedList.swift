@@ -67,14 +67,23 @@ public struct SinglyLinkedList<Element> {
         append(contentsOf: elements)
     }
 
+    @inline(__always)
     private mutating func ensureUnique() {
-        var mark = unsafe.head
-        ensureUnique(mark: &mark)
+        var hmark = unsafe.head
+        ensureUnique(marking: &hmark)
     }
 
-    private mutating func ensureUnique(mark node: inout UnsafeForwardNode<Element>) {
+    @inline(__always)
+    private mutating func ensureUnique(marking node: inout UnsafeForwardNode<Element>) {
+        var nmark = [node]
+        ensureUnique(marking: &nmark)
+
+        node = nmark[0]
+    }
+
+    private mutating func ensureUnique(marking nodes: inout [UnsafeForwardNode<Element>]) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = unsafe.clone(mark: &node)
+            unsafe = unsafe.clone(marking: &nodes)
         }
     }
 
@@ -190,7 +199,7 @@ extension SinglyLinkedList : MutableCollection {
             checkSelfIndex(position)
 
             var last = position.previous
-            ensureUnique(mark: &last)
+            ensureUnique(marking: &last)
 
             last.next!.element = element
         }
@@ -207,12 +216,12 @@ extension SinglyLinkedList : MutableCollection {
         checkValidIndex(i)
         checkValidIndex(j)
 
-        let first = i.previous.next!
-        let second = j.previous.next!
+        var pair = [i.previous.next!, j.previous.next!]
+        ensureUnique(marking: &pair)
 
-        let temp = first.element
-        first.element = second.element
-        second.element = temp
+        let temp = pair[0].element
+        pair[0].element = pair[1].element
+        pair[1].element = temp
     }
 }
 
@@ -235,7 +244,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         checkSelfIndex(i)
 
         var last = i.previous
-        ensureUnique(mark: &last)
+        ensureUnique(marking: &last)
 
         unsafe.attach(node: UnsafeForwardNode.make(newElement), after: last)
     }
@@ -245,7 +254,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
 
         if let chain = UnsafeForwardChain.make(newElements) {
             var last = i.previous
-            ensureUnique(mark: &last)
+            ensureUnique(marking: &last)
 
             unsafe.attach(chain: chain, after: last)
         }
@@ -263,7 +272,7 @@ extension SinglyLinkedList : RangeReplaceableCollection {
         checkNotEmpty()
 
         var node = i.previous
-        ensureUnique(mark: &node)
+        ensureUnique(marking: &node)
 
         return unsafe.abandon(after: node)
     }

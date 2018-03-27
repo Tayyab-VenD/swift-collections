@@ -112,12 +112,12 @@ struct UnsafeForwardChain<Element> {
         return nil
     }
 
-    func clone(mark: inout UnsafeForwardNode<Element>) -> UnsafeForwardChain<Element> {
+    func clone(marking nodes: inout [UnsafeForwardNode<Element>]) -> UnsafeForwardChain<Element> {
         // Clone first node and initialize the chain.
         let first = UnsafeForwardNode.make(head.element)
         var clone = UnsafeForwardChain(head: first, tail: first)
-        if mark == head {
-            mark = first
+        if let index = nodes.index(of: head) {
+            nodes[index] = first
         }
 
         var node = head.next
@@ -128,8 +128,8 @@ struct UnsafeForwardChain<Element> {
             let copy = UnsafeForwardNode.make(node!.element)
             clone.tail.next = copy
             clone.tail = copy
-            if node == mark {
-                mark = copy
+            if let index = nodes.index(of: node!) {
+                nodes[index] = copy
             }
 
             node = node!.next
@@ -171,24 +171,32 @@ final class UnsafeForwardList<Element> {
         self.tail = tail
     }
 
-    func clone(mark node: inout UnsafeForwardNode<Element>) -> UnsafeForwardList<Element> {
+    func clone(marking nodes: inout [UnsafeForwardNode<Element>]) -> UnsafeForwardList<Element> {
         let chain = UnsafeForwardChain(head: head, tail: tail)
-        let clone = chain.clone(mark: &node)
+        let clone = chain.clone(marking: &nodes)
 
         return UnsafeForwardList(head: clone.head, tail: clone.tail)
     }
 
     func clone(skippingAfter first: inout UnsafeForwardNode<Element>,
                skippingBefore last: inout UnsafeForwardNode<Element>) -> UnsafeForwardList<Element> {
+        var fmark = [first]
+        var lmark = [last]
+
         guard first != last else {
             defer {
+                first = fmark[0]
                 last = first
             }
-            return clone(mark: &first)
+            return clone(marking: &fmark)
         }
 
-        let leadingChain = UnsafeForwardChain(head: head, tail: first).clone(mark: &first)
-        let trailingChain = UnsafeForwardChain(head: last, tail: tail).clone(mark: &last)
+        let leadingChain = UnsafeForwardChain(head: head, tail: first).clone(marking: &fmark)
+        let trailingChain = UnsafeForwardChain(head: last, tail: tail).clone(marking: &lmark)
+
+        // Set the mark nodes.
+        first = fmark[0]
+        last = lmark[0]
 
         // Attach leading and trailing chains.
         leadingChain.tail.next = trailingChain.head
