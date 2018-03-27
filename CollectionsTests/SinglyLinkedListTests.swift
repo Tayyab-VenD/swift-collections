@@ -24,9 +24,9 @@ class SinglyLinkedListTests: XCTestCase {
     func testEmptyList() {
         let list = SinglyLinkedList<Int>()
 
-        XCTAssertTrue(list.isEmpty, "The list is not empty")
         XCTAssertEqual(list.count, 0, "The list count is not equal to zero")
         XCTAssertEqual(list.distance(from: list.startIndex, to: list.endIndex), 0, "Total distance is not equal to zero")
+        XCTAssertTrue(list.isEmpty, "The list is not empty")
         XCTAssertNil(list.first, "The first element is not nil")
     }
 
@@ -52,19 +52,14 @@ class SinglyLinkedListTests: XCTestCase {
     }
 
     func testSliceSubscript() {
-        var list = SinglyLinkedList([-3, -2, -1, 0, 0, 0, 1, 2, 3])
-
+        let list = SinglyLinkedList([-3, -2, -1, 0, 0, 0, 1, 2, 3])
         let slice1 = list[list.startIndex..<list.index(list.startIndex, offsetBy: 3)]
         let slice2 = list[slice1.endIndex..<list.index(slice1.endIndex, offsetBy: 3)]
         let slice3 = list[slice2.endIndex..<list.endIndex]
 
-        list[slice2.startIndex..<slice2.endIndex] = SinglyLinkedList<Int>([])
-        list[list.index(after: list.startIndex)..<list.endIndex] = SinglyLinkedList<Int>([0, 3])
-
         XCTAssertEqual(Array(slice1), [-3, -2, -1], "The elements of first slice are not correct")
         XCTAssertEqual(Array(slice2), [0, 0, 0], "The elements of second slice are not correct")
         XCTAssertEqual(Array(slice3), [1, 2, 3], "The elements of third slice are not correct")
-        XCTAssertEqual(Array(list), [-3, 0, 3], "The elements of slice are not written correctly")
     }
 
     func testSwapAt() {
@@ -78,9 +73,9 @@ class SinglyLinkedListTests: XCTestCase {
         let list = SinglyLinkedList([1, 2, 3])
         let nodes = Array(list.nodes)
         let values = [
-            nodes[0].value,
-            nodes[1].value,
-            nodes[2].value
+            nodes[0].element,
+            nodes[1].element,
+            nodes[2].element
         ]
 
         XCTAssertTrue(nodes[0].next === nodes[1], "The `next` property of first node does not point to second one")
@@ -166,12 +161,71 @@ class SinglyLinkedListTests: XCTestCase {
         XCTAssertEqual(Array(list), [], "The list is not empty")
     }
 
-    func testReplaceSubrange() {
+    func testReplaceSubrangeSlices() {
         var list = SinglyLinkedList([-4, 2, -3, -2, 3, -1])
         list.replaceSubrange(list.startIndex..<list.index(list.startIndex, offsetBy: 3), with:[1])
         list.replaceSubrange(list.index(list.startIndex, offsetBy: 1)..<list.index(list.startIndex, offsetBy: 4), with:[])
         list.replaceSubrange(list.endIndex..<list.endIndex, with: [2, 3])
 
         XCTAssertEqual(Array(list), [1, 2, 3], "The elements are not replaced correctly")
+    }
+
+    func testReplaceSubrangeEmpty() {
+        var list = SinglyLinkedList([1, 2, 3])
+        list.replaceSubrange(list.startIndex..<list.endIndex, with: [])
+
+        XCTAssertEqual(Array(list), [], "The list is not empty")
+    }
+
+    func testCopyOnWriteEmpty() {
+        let list = SinglyLinkedList<Int>()
+
+        var copy = list
+        copy.append(contentsOf: [1, 2, 3])
+
+        XCTAssertEqual(Array(list), [], "The constant list is not at original state")
+        XCTAssertEqual(Array(copy), [1, 2, 3], "Copy on write didn't work correctly")
+    }
+
+    func testCopyOnWriteComplete() {
+        let list = SinglyLinkedList([1, 2, 3])
+
+        var copy = list
+        copy.removeSubrange(copy.startIndex..<copy.endIndex)
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The constant list is not at original state")
+        XCTAssertEqual(Array(copy), [], "Copy on write didn't work correctly")
+    }
+
+    func testCopyOnWriteIndex() {
+        let list = SinglyLinkedList([1, 2, 3])
+        let index = list.index(after: list.startIndex)
+
+        var copy = list
+        copy[index] = -2
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The constant list is not at original state")
+        XCTAssertEqual(Array(copy), [1, -2, 3], "Copy on write didn't work correctly")
+    }
+
+    func testCopyOnWriteSwap() {
+        let list = SinglyLinkedList([1, 2, 3])
+
+        var copy = list
+        copy.swapAt(list.startIndex, list.index(list.startIndex, offsetBy:2))
+
+        XCTAssertEqual(Array(list), [1, 2, 3], "The constant list is not at original state")
+        XCTAssertEqual(Array(copy), [3, 2, 1], "Copy on write didn't work correctly")
+    }
+
+    func testCopyOnWriteRange() {
+        let list = SinglyLinkedList([-3, -2, -1, 1, 2, 3])
+        let range = list.index(after: list.startIndex)..<list.index(list.startIndex, offsetBy: 5)
+
+        var copy = list
+        copy.replaceSubrange(range, with: [0])
+
+        XCTAssertEqual(Array(list), [-3, -2, -1, 1, 2, 3], "The constant list is not at original state")
+        XCTAssertEqual(Array(copy), [-3, 0, 3], "Copy on write didn't work correctly")
     }
 }
