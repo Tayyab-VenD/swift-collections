@@ -49,7 +49,7 @@ public struct SinglyLinkedListIndex<Element> : Comparable {
     }
 
     public static func <(lhs: SinglyLinkedListIndex, rhs: SinglyLinkedListIndex) -> Bool {
-        return (lhs.tag < rhs.tag && lhs.tag != rhs.tag)
+        return lhs.tag < rhs.tag
     }
 }
 
@@ -188,7 +188,11 @@ extension SinglyLinkedList : MutableCollection {
         }
         set(element) {
             checkSelfIndex(position)
-            position.previous.next!.element = element
+
+            var last = position.previous
+            ensureUnique(mark: &last)
+
+            last.next!.element = element
         }
     }
 
