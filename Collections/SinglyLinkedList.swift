@@ -69,8 +69,8 @@ public struct SinglyLinkedList<Element> {
 
     @inline(__always)
     private mutating func ensureUnique() {
-        var hmark = unsafe.head
-        ensureUnique(marking: &hmark)
+        var emark: [UnsafeForwardNode<Element>] = []
+        ensureUnique(marking: &emark)
     }
 
     @inline(__always)
@@ -209,6 +209,9 @@ extension SinglyLinkedList : MutableCollection {
         get {
             checkValidRange(bounds)
             return MutableRangeReplaceableSlice(base: self, bounds: bounds)
+        }
+        set(slice) {
+            replaceSubrange(bounds, with: slice)
         }
     }
 

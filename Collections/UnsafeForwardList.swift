@@ -210,11 +210,11 @@ final class UnsafeForwardList<Element> {
     }
 
     func attach(node: UnsafeForwardNode<Element>, after last: UnsafeForwardNode<Element>) {
-        let next = last.next    // In case `first` and `last` point to the same node.
+        let next = last.next    // In case `node` and `last` point to the same node.
         last.next = node
         node.next = next
 
-        if last == tail {
+        if next == nil {
             tail = node
         }
     }
@@ -239,16 +239,17 @@ final class UnsafeForwardList<Element> {
         first.next = chain.head
         chain.tail.next = next
 
-        if last == tail {
+        if next == nil {
             tail = chain.tail
         }
     }
 
     func abandon(after node: UnsafeForwardNode<Element>) -> Element {
         let next = node.next!
+        let element = next.element!
         abandon(after: node, including: next)
 
-        return next.element
+        return element
     }
 
     func abandon(after first: UnsafeForwardNode<Element>, including last: UnsafeForwardNode<Element>) {
@@ -259,7 +260,7 @@ final class UnsafeForwardList<Element> {
 
         first.next = next
 
-        if last == tail {
+        if next == nil {
             tail = first
         }
     }
