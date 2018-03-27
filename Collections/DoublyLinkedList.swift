@@ -8,106 +8,50 @@
 
 import Foundation
 
-// MARK: - LinkedListIterator
-
 public struct LinkedListIterator<Element> : IteratorProtocol {
-    private let uniqueness: AnyObject
-    private var current: LinkedListNode<Element>?
-    private let last: LinkedListNode<Element>?
+    private let owner: UnsafeList<Element>
+    private var node: UnsafeNode<Element>
+    private let last: UnsafeNode<Element>
 
-    fileprivate init(uniqueness: AnyObject, first: LinkedListNode<Element>?, last: LinkedListNode<Element>?) {
-        self.uniqueness = uniqueness
-        self.current = first
+    init(owner: UnsafeList<Element>,
+         first: UnsafeNode<Element>,
+         last: UnsafeNode<Element>) {
+        self.owner = owner
+        self.node = first
         self.last = last
     }
 
     public mutating func next() -> Element? {
-        if current !== last {
+        if node != last {
             defer {
-                current = current?.next
+                node = node.next
             }
-
-            return current!.element
+            return node.element
         }
 
         return nil
     }
 }
 
-// MARK: - LinkedListIndex
-
 public struct LinkedListIndex<Element> : Comparable {
-    unowned var identity: AnyObject
-    var offset: Int
-    var node: LinkedListNode<Element>
+    unowned(unsafe) var owner: UnsafeList<Element>
+    var tag: Int
+    var node: UnsafeNode<Element>
 
     public static func ==(lhs: LinkedListIndex, rhs: LinkedListIndex) -> Bool {
-        return lhs.node === rhs.node
+        return lhs.node == rhs.node
     }
 
     public static func <(lhs: LinkedListIndex, rhs: LinkedListIndex) -> Bool {
-        return (lhs.offset < rhs.offset && lhs.node !== rhs.node)
+        return lhs.tag < rhs.tag
     }
 }
-
-// MARK: - UnsafeLinkedList
-
-final class UnsafeLinkedList<Element> {
-    var head: LinkedListNode<Element>
-
-    init() {
-        head = LinkedListNode()
-        head.next = head
-        head.previous = head
-    }
-
-    deinit {
-        // Break the retain cycle.
-        head.next = nil
-    }
-
-    private init(head: LinkedListNode<Element>) {
-        self.head = head
-    }
-
-    func makeClone(mark node: inout LinkedListNode<Element>) -> UnsafeLinkedList<Element> {
-        let chain = LinkedListChain(head: head, tail: head.previous!)
-        chain.tail.next = chain.head
-        chain.head.previous = chain.tail
-
-        return UnsafeLinkedList(head: chain.head)
-    }
-
-    func makeClone(skippingAfter first: inout LinkedListNode<Element>, skippingBefore last: inout LinkedListNode<Element>) -> UnsafeLinkedList<Element> {
-        guard first !== last else {
-            let clone = makeClone(mark: &first)
-            last = first
-
-            return clone
-        }
-
-        let leadingChain = cloneChain(LinkedListChain(head: head.next!, tail: first), mark: &first)
-        let trailingChain = cloneChain(LinkedListChain(head: last, tail: head), mark: &last)
-
-        // Attach leading and trailing chains.
-        trailingChain.head.previous = leadingChain.tail
-        leadingChain.tail.next = trailingChain.head
-
-        // Make the chain circular.
-        trailingChain.tail.next = leadingChain.head
-        leadingChain.head.previous = trailingChain.tail
-
-        return UnsafeLinkedList(head: trailingChain.tail)
-    }
-}
-
-// MARK: - LinkedList
 
 public struct LinkedList<Element> {
-    private var unsafe: UnsafeLinkedList<Element>
+    private var unsafe: UnsafeList<Element>
 
     public init() {
-        unsafe = UnsafeLinkedList()
+        unsafe = UnsafeList()
     }
 
     public init<S>(_ elements: S) where S : Sequence, Element == S.Element {
@@ -115,37 +59,47 @@ public struct LinkedList<Element> {
         append(contentsOf: elements)
     }
 
+    @inline(__always)
     private mutating func ensureUnique() {
-        var mark = unsafe.head
-        ensureUnique(mark: &mark)
+        var emark: [UnsafeNode<Element>] = []
+        ensureUnique(marking: &emark)
     }
 
-    private mutating func ensureUnique(mark node: inout Node) {
+    @inline(__always)
+    private mutating func ensureUnique(marking node: inout UnsafeNode<Element>) {
+        var nmark = [node]
+        ensureUnique(marking: &nmark)
+
+        node = nmark[0]
+    }
+
+    private mutating func ensureUnique(marking nodes: inout [UnsafeNode<Element>]) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = unsafe.makeClone(mark: &node)
+            unsafe = unsafe.clone(marking: &nodes)
         }
     }
 
-    private mutating func ensureUnique(skippingAfter first: inout Node, skippingBefore last: inout Node) {
+    private mutating func ensureUnique(skippingAfter first: inout UnsafeNode<Element>,
+                                       skippingBefore last: inout UnsafeNode<Element>) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = unsafe.makeClone(skippingAfter: &first, skippingBefore: &last)
+            unsafe = unsafe.clone(skippingAfter: &first, skippingBefore: &last)
         }
     }
 
-    private mutating func ensureUnique(skipAll: Bool) {
+    private mutating func ensureUnique(skippingAll: Bool) {
         if !isKnownUniquelyReferenced(&unsafe) {
-            unsafe = UnsafeLinkedList()
+            unsafe = UnsafeList()
         }
     }
 
     private func checkSelfIndex(_ index: Index) {
-        precondition(index.identity === unsafe,
+        precondition(index.owner === unsafe,
                      "Index does not belong to this linked list")
     }
 
     private func checkValidIndex(_ index: Index) {
         checkSelfIndex(index)
-        precondition(index.node !== unsafe.head,
+        precondition(index.node != unsafe.head,
                      "Index is out of bounds")
     }
 
@@ -155,9 +109,9 @@ public struct LinkedList<Element> {
     }
 
     private func checkValidRange(_ range: Range<Index>) {
-        precondition(range.lowerBound.identity === unsafe,
+        precondition(range.lowerBound.owner === unsafe,
                      "Range start index does not belong to this linked list")
-        precondition(range.upperBound.identity === unsafe,
+        precondition(range.upperBound.owner === unsafe,
                      "Range end index does not belong to this linked list")
     }
 }
@@ -168,9 +122,9 @@ extension LinkedList : Sequence {
     public typealias Iterator = LinkedListIterator<Element>
 
     public func makeIterator() -> Iterator {
-        return LinkedListIterator(uniqueness: unsafe,
-                                  first: unsafe.head.next!,
-                                  last: unsafe.head.previous!)
+        return LinkedListIterator(owner: unsafe,
+                                  first: unsafe.head.next,
+                                  last: unsafe.head.previous)
     }
 }
 
@@ -181,31 +135,31 @@ extension LinkedList : LinkedCollection {
     public typealias Node = LinkedListNode<Element>
 
     public var startIndex: Index {
-        return Index(identity: unsafe, offset: 0, node: unsafe.head.next!)
+        return Index(owner: unsafe, tag: 0, node: unsafe.head.next)
     }
 
     public var endIndex: Index {
-        return Index(identity: unsafe, offset: Int.max, node: unsafe.head)
+        return Index(owner: unsafe, tag: Int.max, node: unsafe.head)
     }
 
     public func index(after i: Index) -> Index {
-        return Index(identity: i.identity,
-                     offset: i.offset + 1,
-                     node: i.node.next!)
+        return Index(owner: i.owner,
+                     tag: i.tag + 1,
+                     node: i.node.next)
     }
 
     public func formIndex(after i: inout Index) {
-        i.offset += 1
-        i.node = i.node.next!
+        i.tag += 1
+        i.node = i.node.next
     }
 
     public func distance(from start: Index, to end: Index) -> Int {
         var distance: Int = 0
 
         let last = end.node
-        var node: Node! = start.node
+        var node = start.node
 
-        while node !== last {
+        while node != last {
             distance += 1
             node = node.next
         }
@@ -218,13 +172,13 @@ extension LinkedList : LinkedCollection {
     }
 
     public var isEmpty: Bool {
-        return unsafe.head === unsafe.head.next
+        return unsafe.head == unsafe.head.next
     }
 
     public var first: Element? {
         let node = unsafe.head.next
-        if node !== unsafe.head {
-            return node!.element
+        if node != unsafe.head {
+            return node.element
         }
 
         return nil
@@ -232,7 +186,7 @@ extension LinkedList : LinkedCollection {
 
     public func node(at position: Index) -> Node {
         checkValidIndex(position)
-        return position.node
+        return position.node.instance
     }
 }
 
@@ -240,20 +194,20 @@ extension LinkedList : LinkedCollection {
 
 extension LinkedList : BidirectionalCollection {
     public func formIndex(before i: inout Index) {
-        i.offset -= 1
-        i.node = i.node.previous!
+        i.tag -= 1
+        i.node = i.node.previous
     }
 
     public func index(before i: Index) -> Index {
-        return Index(identity: i.identity,
-                     offset: i.offset + 1,
-                     node: i.node.previous!)
+        return Index(owner: i.owner,
+                     tag: i.tag - 1,
+                     node: i.node.previous)
     }
 
     public var last: Element? {
         let node = unsafe.head.previous
-        if node !== unsafe.head {
-            return node!.element
+        if node != unsafe.head {
+            return node.element
         }
 
         return nil
@@ -270,7 +224,11 @@ extension LinkedList : MutableCollection {
         }
         set(element) {
             checkSelfIndex(position)
-            position.node.element = element
+
+            var node = position.node
+            ensureUnique(marking: &node)
+
+            node.element = element
         }
     }
 
@@ -279,18 +237,21 @@ extension LinkedList : MutableCollection {
             checkValidRange(bounds)
             return MutableRangeReplaceableBidirectionalSlice(base: self, bounds: bounds)
         }
+        set(slice) {
+            replaceSubrange(bounds, with: slice)
+        }
     }
 
     public mutating func swapAt(_ i: Index, _ j: Index) {
         checkValidIndex(i)
         checkValidIndex(j)
 
-        let first = i.node
-        let second = j.node
+        var pair = [i.node, j.node]
+        ensureUnique(marking: &pair)
 
-        let temp = first.element
-        first.element = second.element
-        second.element = temp
+        let temp = pair[0].element
+        pair[0].element = pair[1].element
+        pair[1].element = temp
     }
 }
 
@@ -299,13 +260,13 @@ extension LinkedList : MutableCollection {
 extension LinkedList : RangeReplaceableCollection {
     public mutating func append(_ newElement: Element) {
         ensureUnique()
-        attach(node: Node(newElement), after: unsafe.head.previous!)
+        unsafe.attach(node: UnsafeNode.make(newElement), after: unsafe.head.previous)
     }
 
     public mutating func append<S>(contentsOf newElements: S) where S : Sequence, Element == S.Element {
-        if let chain: LinkedListChain<Element> = makeChain(newElements) {
+        if let chain = UnsafeChain.make(newElements) {
             ensureUnique()
-            attach(chain: chain, after: unsafe.head.previous!)
+            unsafe.attach(chain: chain, after: unsafe.head.previous)
         }
     }
 
@@ -313,19 +274,19 @@ extension LinkedList : RangeReplaceableCollection {
         checkSelfIndex(i)
 
         var node = i.node
-        ensureUnique(mark: &node)
+        ensureUnique(marking: &node)
 
-        attach(node: Node(newElement), after: node.previous!)
+        unsafe.attach(node: UnsafeNode.make(newElement), after: node.previous)
     }
 
     public mutating func insert<S>(contentsOf newElements: S, at i: Index) where S : Collection, Element == S.Element {
         checkSelfIndex(i)
 
-        if let chain: LinkedListChain<Element> = makeChain(newElements) {
+        if let chain = UnsafeChain.make(newElements) {
             var node = i.node
-            ensureUnique(mark: &node)
+            ensureUnique(marking: &node)
 
-            attach(chain: chain, after: node.previous!)
+            unsafe.attach(chain: chain, after: node.previous)
         }
     }
 
@@ -333,14 +294,14 @@ extension LinkedList : RangeReplaceableCollection {
         checkNotEmpty()
         ensureUnique()
 
-        return abandon(node: unsafe.head.next!)
+        return unsafe.abandon(node: unsafe.head.next)
     }
 
     public mutating func removeLast() -> Element {
         checkNotEmpty()
         ensureUnique()
 
-        return abandon(node: unsafe.head.previous!)
+        return unsafe.abandon(node: unsafe.head.previous)
     }
 
     public mutating func remove(at i: Index) -> Element {
@@ -348,9 +309,9 @@ extension LinkedList : RangeReplaceableCollection {
         checkNotEmpty()
 
         var node = i.node
-        ensureUnique(mark: &node)
+        ensureUnique(marking: &node)
 
-        return abandon(node: node)
+        return unsafe.abandon(node: node)
     }
 
     public mutating func removeSubrange(_ bounds: Range<Index>) {
@@ -360,12 +321,12 @@ extension LinkedList : RangeReplaceableCollection {
         var last = bounds.upperBound.node
         ensureUnique(skippingAfter: &first, skippingBefore: &last)
 
-        abandon(after: first.previous!, before: last)
+        unsafe.abandon(after: first.previous, before: last)
     }
 
     public mutating func removeAll(keepingCapacity keepCapacity: Bool = false) {
-        ensureUnique(skipAll: true)
-        abandon(after: unsafe.head, before: unsafe.head)
+        ensureUnique(skippingAll: true)
+        unsafe.abandon(after: unsafe.head, before: unsafe.head)
     }
 
     public mutating func replaceSubrange<C>(_ subrange: Range<Index>, with newElements: C) where C : Collection, Element == C.Element {
@@ -375,10 +336,10 @@ extension LinkedList : RangeReplaceableCollection {
         var last = subrange.upperBound.node
         ensureUnique(skippingAfter: &first, skippingBefore: &last)
 
-        if let chain: LinkedListChain<Element> = makeChain(newElements) {
-            attach(chain: chain, after: first.previous!, before: last)
+        if let chain = UnsafeChain.make(newElements) {
+            unsafe.attach(chain: chain, after: first.previous, before: last)
         } else {
-            abandon(after: first.previous!, before: last)
+            unsafe.abandon(after: first.previous, before: last)
         }
     }
 }
